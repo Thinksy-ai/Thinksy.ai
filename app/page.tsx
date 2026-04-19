@@ -1,21 +1,21 @@
 "use client";
 
 import { useState } from "react";
-import { useChat } from "@/hooks/useChat";
 import { useChats } from "@/hooks/useChats";
 import ChatWindow from "@/components/chat/ChatWindow";
 import ChatInput from "@/components/chat/ChatInput";
 import Sidebar from "@/components/sidebar/Sidebar";
 
 export default function Home() {
-  const { sendMessage } = useChat();
   const {
     chats,
     activeChat,
     activeId,
     setActiveId,
     addMessage,
-    newChat
+    newChat,
+    renameChat,
+    deleteChat
   } = useChats();
 
   const [input, setInput] = useState("");
@@ -44,10 +44,12 @@ export default function Home() {
         activeId={activeId}
         setActiveId={setActiveId}
         newChat={newChat}
+        renameChat={renameChat}
+        deleteChat={deleteChat}
       />
 
       <div style={{ flex: 1, display: "flex", flexDirection: "column" }}>
-        <ChatWindow messages={activeChat.messages} />
+        <ChatWindow messages={activeChat?.messages || []} />
 
         <ChatInput
           input={input}
