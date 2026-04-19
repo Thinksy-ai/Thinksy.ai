@@ -1,11 +1,27 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Chat, createNewChat } from "@/store/chatStore";
+import { saveChats } from "@/lib/storage/saveChats";
+import { loadChats } from "@/lib/storage/loadChats";
 
 export function useChats() {
-  const [chats, setChats] = useState<Chat[]>([createNewChat()]);
-  const [activeId, setActiveId] = useState(chats[0].id);
+  const [chats, setChats] = useState<Chat[]>([]);
+  const [activeId, setActiveId] = useState<string>("");
 
-  const activeChat = chats.find(c => c.id === activeId)!;
+  // Load on start
+  useEffect(() => {
+    const { chats, activeId } = loadChats();
+    setChats(chats);
+    setActiveId(activeId);
+  }, []);
+
+  // Save whenever chats change
+  useEffect(() => {
+    if (chats.length > 0 && activeId) {
+      saveChats(chats, activeId);
+    }
+  }, [chats, activeId]);
+
+  const activeChat = chats.find(c => c.id === activeId) || chats[0];
 
   const addMessage = (msg: any) => {
     setChats(prev =>
