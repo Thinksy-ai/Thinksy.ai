@@ -1,5 +1,7 @@
 import ChatList from "./ChatList";
 import NewChatButton from "./NewChatButton";
+import ThemeToggle from "../ui/ThemeToggle";
+import { useTheme } from "@/hooks/useTheme";
 
 export default function Sidebar({
   chats,
@@ -9,8 +11,23 @@ export default function Sidebar({
   renameChat,
   deleteChat
 }: any) {
+  const { toggleTheme } = useTheme();
+
   return (
-    <div style={{ width: 260, background: "#111", color: "#fff" }}>
+    <div
+      style={{
+        width: 260,
+        background: "#111",
+        color: "#fff",
+        display: "flex",
+        flexDirection: "column",
+        padding: 10
+      }}
+    >
+      <div style={{ marginBottom: 10 }}>
+        <ThemeToggle toggle={toggleTheme} />
+      </div>
+
       <NewChatButton newChat={newChat} />
 
       <ChatList
