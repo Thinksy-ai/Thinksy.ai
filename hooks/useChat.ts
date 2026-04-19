@@ -1,31 +1,49 @@
 import { useState } from "react";
+import { Chat, createNewChat } from "@/store/chatStore";
 
-export function useChat() {
-  const [messages, setMessages] = useState<any[]>([]);
-  const [loading, setLoading] = useState(false);
+export function useChats() {
+  const [chats, setChats] = useState<Chat[]>([createNewChat()]);
+  const [activeId, setActiveId] = useState(chats[0].id);
 
-  const sendMessage = async (input: string) => {
-    if (!input) return;
+  const activeChat = chats.find(c => c.id === activeId)!;
 
-    setLoading(true);
-
-    const newMsgs = [...messages, { role: "user", content: input }];
-    setMessages(newMsgs);
-
-    const res = await fetch("/api/chat", {
-      method: "POST",
-      body: JSON.stringify({ messages: newMsgs }),
-    });
-
-    const data = await res.json();
-
-    setMessages([
-      ...newMsgs,
-      { role: "assistant", content: data.reply },
-    ]);
-
-    setLoading(false);
+  const addMessage = (msg: any) => {
+    setChats(prev =>
+      prev.map(chat =>
+        chat.id === activeId
+          ? { ...chat, messages: [...chat.messages, msg] }
+          : chat
+      )
+    );
   };
 
-  return { messages, sendMessage, loading };
+  const newChat = () => {
+    const chat = createNewChat();
+    setChats(prev => [chat, ...prev]);
+    setActiveId(chat.id);
+  };
+
+  const deleteChat = (id: string) => {
+    setChats(prev => prev.filter(c => c.id !== id));
+    if (id === activeId && chats.length > 1) {
+      setActiveId(chats[0].id);
+    }
+  };
+
+  const renameChat = (id: string, title: string) => {
+    setChats(prev =>
+      prev.map(c => (c.id === id ? { ...c, title } : c))
+    );
+  };
+
+  return {
+    chats,
+    activeChat,
+    activeId,
+    setActiveId,
+    addMessage,
+    newChat,
+    deleteChat,
+    renameChat,
+  };
 }
