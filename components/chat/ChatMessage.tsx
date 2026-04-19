@@ -2,24 +2,35 @@ import Markdown from "../ui/Markdown";
 import MessageActions from "./MessageActions";
 
 export default function ChatMessage({ role, content }: any) {
-  return (
-    <div style={{
-      padding: 10,
-      textAlign: role === "user" ? "right" : "left"
-    }}>
-      <div style={{
-        display: "inline-block",
-        background: role === "user" ? "#4a90e2" : "#eee",
-        color: role === "user" ? "#fff" : "#000",
-        padding: 10,
-        borderRadius: 8
-      }}>
-        <Markdown content={content} />
-      </div>
+  const isUser = role === "user";
 
-      {role === "assistant" && (
-        <MessageActions content={content} />
-      )}
+  return (
+    <div
+      style={{
+        display: "flex",
+        justifyContent: isUser ? "flex-end" : "flex-start",
+        padding: "6px 12px"
+      }}
+    >
+      <div
+        style={{
+          maxWidth: "70%",
+          padding: "10px 14px",
+          borderRadius: 12,
+          background: isUser
+            ? "var(--chat-user)"
+            : "var(--chat-ai)",
+          color: isUser ? "#fff" : "var(--text)"
+        }}
+      >
+        <Markdown content={content} />
+
+        {!isUser && (
+          <div style={{ marginTop: 5 }}>
+            <MessageActions content={content} />
+          </div>
+        )}
+      </div>
     </div>
   );
 }
