@@ -1,11 +1,6 @@
-export default function NewChatButton() {
+export default function NewChatButton({ newChat }: any) {
   return (
-    <button style={{
-      margin: 10,
-      padding: 10,
-      background: "#333",
-      color: "#fff"
-    }}>
+    <button onClick={newChat} style={{ margin: 10 }}>
       + New Chat
     </button>
   );
