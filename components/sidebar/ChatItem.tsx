@@ -1,6 +1,12 @@
 import ChatActions from "./ChatActions";
 
-export default function ChatItem({ chat, active, onClick }: any) {
+export default function ChatItem({
+  chat,
+  active,
+  onClick,
+  renameChat,
+  deleteChat
+}: any) {
   return (
     <div
       onClick={onClick}
@@ -11,7 +17,12 @@ export default function ChatItem({ chat, active, onClick }: any) {
       }}
     >
       <div>{chat.title}</div>
-      <ChatActions chat={chat} />
+
+      <ChatActions
+        chat={chat}
+        renameChat={renameChat}
+        deleteChat={deleteChat}
+      />
     </div>
   );
 }
