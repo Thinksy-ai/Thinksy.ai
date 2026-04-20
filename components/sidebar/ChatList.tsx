@@ -5,7 +5,7 @@ export default function ChatList({
   activeId,
   setActiveId,
   renameChat,
-  deleteChat
+  deleteChat,
 }: any) {
   return (
     <div>
