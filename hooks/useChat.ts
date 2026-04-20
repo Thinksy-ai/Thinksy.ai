@@ -60,6 +60,27 @@ export function useChats() {
     );
   };
 
+  // ✏️ EDIT MESSAGE
+  const editMessage = (index: number, newContent: string) => {
+    setChats(prev =>
+      prev.map(chat => {
+        if (chat.id !== activeId) return chat;
+
+        const updated = [...chat.messages];
+
+        // remove everything after edited message
+        const trimmed = updated.slice(0, index);
+
+        trimmed.push({
+          role: "user",
+          content: newContent,
+        });
+
+        return { ...chat, messages: trimmed };
+      })
+    );
+  };
+
   const newChat = () => {
     const chat = createNewChat();
     setChats(prev => [chat, ...prev]);
@@ -88,6 +109,7 @@ export function useChats() {
     setActiveId,
     addMessage,
     updateLastMessage,
+    editMessage,
     newChat,
     deleteChat,
     renameChat,
