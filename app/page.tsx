@@ -16,6 +16,7 @@ export default function Home() {
     setActiveId,
     addMessage,
     updateLastMessage,
+    editMessage,
     newChat,
     renameChat,
     deleteChat,
@@ -24,14 +25,10 @@ export default function Home() {
   const { startStream, stop, isStreaming } = useStream();
   const [input, setInput] = useState("");
 
-  const send = async () => {
-    if (!input || isStreaming) return;
-
-    addMessage({ role: "user", content: input });
-
+  const callAI = async (messages: any[]) => {
     const res = await fetch("/api/chat", {
       method: "POST",
-      body: JSON.stringify({ messages: activeChat.messages }),
+      body: JSON.stringify({ messages }),
     });
 
     const data = await res.json();
@@ -41,8 +38,26 @@ export default function Home() {
     await startStream(data.reply, (chunk: string) => {
       updateLastMessage(chunk);
     });
+  };
+
+  const send = async () => {
+    if (!input || isStreaming) return;
+
+    addMessage({ role: "user", content: input });
+
+    await callAI(activeChat.messages);
 
     setInput("");
+  };
+
+  const handleEdit = async (index: number, newText: string) => {
+    editMessage(index, newText);
+    await callAI(activeChat.messages.slice(0, index + 1));
+  };
+
+  const handleRegenerate = async (index: number) => {
+    const messages = activeChat.messages.slice(0, index);
+    await callAI(messages);
   };
 
   return (
@@ -57,7 +72,11 @@ export default function Home() {
       />
 
       <div style={{ flex: 1, display: "flex", flexDirection: "column" }}>
-        <ChatWindow messages={activeChat?.messages || []} />
+        <ChatWindow
+          messages={activeChat?.messages || []}
+          onEdit={handleEdit}
+          onRegenerate={handleRegenerate}
+        />
 
         {isStreaming && (
           <>
