@@ -9,7 +9,7 @@ export default function Sidebar({
   setActiveId,
   newChat,
   renameChat,
-  deleteChat
+  deleteChat,
 }: any) {
   const { toggleTheme } = useTheme();
 
@@ -21,12 +21,10 @@ export default function Sidebar({
         color: "#fff",
         display: "flex",
         flexDirection: "column",
-        padding: 10
+        padding: 10,
       }}
     >
-      <div style={{ marginBottom: 10 }}>
-        <ThemeToggle toggle={toggleTheme} />
-      </div>
+      <ThemeToggle toggle={toggleTheme} />
 
       <NewChatButton newChat={newChat} />
 
