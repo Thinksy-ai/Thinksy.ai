@@ -5,7 +5,7 @@ export default function ChatItem({
   active,
   onClick,
   renameChat,
-  deleteChat
+  deleteChat,
 }: any) {
   return (
     <div
@@ -13,10 +13,18 @@ export default function ChatItem({
       style={{
         padding: 10,
         background: active ? "#333" : "transparent",
-        cursor: "pointer"
+        cursor: "pointer",
       }}
     >
-      <div>{chat.title}</div>
+      <div
+        style={{
+          whiteSpace: "nowrap",
+          overflow: "hidden",
+          textOverflow: "ellipsis",
+        }}
+      >
+        {chat.title}
+      </div>
 
       <ChatActions
         chat={chat}
