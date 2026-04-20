@@ -2,9 +2,11 @@
 
 import { useState } from "react";
 import { useChats } from "@/hooks/useChats";
+import { useStream } from "@/hooks/useStream";
 import ChatWindow from "@/components/chat/ChatWindow";
 import ChatInput from "@/components/chat/ChatInput";
 import Sidebar from "@/components/sidebar/Sidebar";
+import TypingDots from "@/components/chat/TypingDots";
 
 export default function Home() {
   const {
@@ -13,15 +15,17 @@ export default function Home() {
     activeId,
     setActiveId,
     addMessage,
+    updateLastMessage,
     newChat,
     renameChat,
-    deleteChat
+    deleteChat,
   } = useChats();
 
+  const { startStream, stop, isStreaming } = useStream();
   const [input, setInput] = useState("");
 
   const send = async () => {
-    if (!input) return;
+    if (!input || isStreaming) return;
 
     addMessage({ role: "user", content: input });
 
@@ -32,7 +36,11 @@ export default function Home() {
 
     const data = await res.json();
 
-    addMessage({ role: "assistant", content: data.reply });
+    addMessage({ role: "assistant", content: "" });
+
+    await startStream(data.reply, (chunk: string) => {
+      updateLastMessage(chunk);
+    });
 
     setInput("");
   };
@@ -50,6 +58,13 @@ export default function Home() {
 
       <div style={{ flex: 1, display: "flex", flexDirection: "column" }}>
         <ChatWindow messages={activeChat?.messages || []} />
+
+        {isStreaming && (
+          <>
+            <TypingDots />
+            <button onClick={stop}>Stop generating</button>
+          </>
+        )}
 
         <ChatInput
           input={input}
