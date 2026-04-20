@@ -3,10 +3,14 @@
 import { useState } from "react";
 import { useChats } from "@/hooks/useChats";
 import { useStream } from "@/hooks/useStream";
+import { useDebug } from "@/hooks/useDebug";
+
 import ChatWindow from "@/components/chat/ChatWindow";
 import ChatInput from "@/components/chat/ChatInput";
 import Sidebar from "@/components/sidebar/Sidebar";
 import TypingDots from "@/components/chat/TypingDots";
+import ExportButtons from "@/components/ui/ExportButtons";
+import DebugPanel from "@/components/ui/DebugPanel";
 
 export default function Home() {
   const {
@@ -23,20 +27,24 @@ export default function Home() {
   } = useChats();
 
   const { startStream, stop, isStreaming } = useStream();
+  const { error, wrap } = useDebug();
+
   const [input, setInput] = useState("");
 
   const callAI = async (messages: any[]) => {
-    const res = await fetch("/api/chat", {
-      method: "POST",
-      body: JSON.stringify({ messages }),
-    });
+    await wrap(async () => {
+      const res = await fetch("/api/chat", {
+        method: "POST",
+        body: JSON.stringify({ messages }),
+      });
 
-    const data = await res.json();
+      const data = await res.json();
 
-    addMessage({ role: "assistant", content: "" });
+      addMessage({ role: "assistant", content: "" });
 
-    await startStream(data.reply, (chunk: string) => {
-      updateLastMessage(chunk);
+      await startStream(data.reply, (chunk: string) => {
+        updateLastMessage(chunk);
+      });
     });
   };
 
@@ -72,16 +80,20 @@ export default function Home() {
       />
 
       <div style={{ flex: 1, display: "flex", flexDirection: "column" }}>
+        <DebugPanel error={error} />
+
         <ChatWindow
           messages={activeChat?.messages || []}
           onEdit={handleEdit}
           onRegenerate={handleRegenerate}
         />
 
+        <ExportButtons messages={activeChat?.messages || []} />
+
         {isStreaming && (
           <>
             <TypingDots />
-            <button onClick={stop}>Stop generating</button>
+            <button onClick={stop}>Stop</button>
           </>
         )}
 
