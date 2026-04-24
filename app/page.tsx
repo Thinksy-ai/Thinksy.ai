@@ -3,14 +3,15 @@
 import { useState } from "react";
 import { useChats } from "@/hooks/useChats";
 import { useStream } from "@/hooks/useStream";
-import { useDebug } from "@/hooks/useDebug";
+import { useSpeechSynthesis } from "@/hooks/useSpeechSynthesis";
 
+import Sidebar from "@/components/sidebar/Sidebar";
 import ChatWindow from "@/components/chat/ChatWindow";
 import ChatInput from "@/components/chat/ChatInput";
-import Sidebar from "@/components/sidebar/Sidebar";
 import TypingDots from "@/components/chat/TypingDots";
-import ExportButtons from "@/components/ui/ExportButtons";
-import DebugPanel from "@/components/ui/DebugPanel";
+
+import VoiceToggle from "@/components/ui/VoiceToggle";
+import VoiceSettings from "@/components/ui/VoiceSettings";
 
 export default function Home() {
   const {
@@ -20,32 +21,39 @@ export default function Home() {
     setActiveId,
     addMessage,
     updateLastMessage,
-    editMessage,
     newChat,
     renameChat,
     deleteChat,
   } = useChats();
 
   const { startStream, stop, isStreaming } = useStream();
-  const { error, wrap } = useDebug();
+
+  const { enabled, setEnabled, speak } = useSpeechSynthesis();
+
+  const [rate, setRate] = useState(1);
+  const [pitch, setPitch] = useState(1);
 
   const [input, setInput] = useState("");
 
   const callAI = async (messages: any[]) => {
-    await wrap(async () => {
-      const res = await fetch("/api/chat", {
-        method: "POST",
-        body: JSON.stringify({ messages }),
-      });
-
-      const data = await res.json();
-
-      addMessage({ role: "assistant", content: "" });
-
-      await startStream(data.reply, (chunk: string) => {
-        updateLastMessage(chunk);
-      });
+    const res = await fetch("/api/chat", {
+      method: "POST",
+      body: JSON.stringify({ messages }),
     });
+
+    const data = await res.json();
+
+    addMessage({ role: "assistant", content: "" });
+
+    let finalText = "";
+
+    await startStream(data.reply, (chunk: string) => {
+      finalText = chunk;
+      updateLastMessage(chunk);
+    });
+
+    // 🔊 Speak after full response
+    speak(finalText, rate, pitch);
   };
 
   const send = async () => {
@@ -56,16 +64,6 @@ export default function Home() {
     await callAI(activeChat.messages);
 
     setInput("");
-  };
-
-  const handleEdit = async (index: number, newText: string) => {
-    editMessage(index, newText);
-    await callAI(activeChat.messages.slice(0, index + 1));
-  };
-
-  const handleRegenerate = async (index: number) => {
-    const messages = activeChat.messages.slice(0, index);
-    await callAI(messages);
   };
 
   return (
@@ -80,15 +78,20 @@ export default function Home() {
       />
 
       <div style={{ flex: 1, display: "flex", flexDirection: "column" }}>
-        <DebugPanel error={error} />
+        <div style={{ padding: 5 }}>
+          <VoiceToggle
+            enabled={enabled}
+            toggle={() => setEnabled(!enabled)}
+          />
+          <VoiceSettings
+            rate={rate}
+            setRate={setRate}
+            pitch={pitch}
+            setPitch={setPitch}
+          />
+        </div>
 
-        <ChatWindow
-          messages={activeChat?.messages || []}
-          onEdit={handleEdit}
-          onRegenerate={handleRegenerate}
-        />
-
-        <ExportButtons messages={activeChat?.messages || []} />
+        <ChatWindow messages={activeChat?.messages || []} />
 
         {isStreaming && (
           <>
