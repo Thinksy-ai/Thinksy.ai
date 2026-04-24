@@ -3,15 +3,14 @@
 import { useState } from "react";
 import { useChats } from "@/hooks/useChats";
 import { useStream } from "@/hooks/useStream";
-import { useSpeechSynthesis } from "@/hooks/useSpeechSynthesis";
 
 import Sidebar from "@/components/sidebar/Sidebar";
 import ChatWindow from "@/components/chat/ChatWindow";
 import ChatInput from "@/components/chat/ChatInput";
 import TypingDots from "@/components/chat/TypingDots";
 
-import VoiceToggle from "@/components/ui/VoiceToggle";
-import VoiceSettings from "@/components/ui/VoiceSettings";
+import { askAI } from "@/lib/ai/realAI";
+import { speakElevenLabs } from "@/lib/voice/elevenlabs";
 
 export default function Home() {
   const {
@@ -28,38 +27,39 @@ export default function Home() {
 
   const { startStream, stop, isStreaming } = useStream();
 
-  const { enabled, setEnabled, speak } = useSpeechSynthesis();
-
-  const [rate, setRate] = useState(1);
-  const [pitch, setPitch] = useState(1);
-
   const [input, setInput] = useState("");
 
+  // ✅ FULL AI FUNCTION (no confusion now)
   const callAI = async (messages: any[]) => {
-    const res = await fetch("/api/chat", {
-      method: "POST",
-      body: JSON.stringify({ messages }),
-    });
-
-    const data = await res.json();
+    const reply = await askAI(messages);
 
     addMessage({ role: "assistant", content: "" });
 
     let finalText = "";
 
-    await startStream(data.reply, (chunk: string) => {
+    await startStream(reply, (chunk: string) => {
       finalText = chunk;
       updateLastMessage(chunk);
     });
 
-    // 🔊 Speak after full response
-    speak(finalText, rate, pitch);
+    // 🔊 Speak with ElevenLabs
+    speakElevenLabs(finalText);
   };
 
-  const send = async () => {
-    if (!input || isStreaming) return;
+  const send = async (file?: any) => {
+    if (!input && !file) return;
 
-    addMessage({ role: "user", content: input });
+    let content = input;
+
+    if (file) {
+      if (file.type === "image") {
+        content += `\n[Image: ${file.name}]`;
+      } else {
+        content += `\n${file.data}`;
+      }
+    }
+
+    addMessage({ role: "user", content });
 
     await callAI(activeChat.messages);
 
@@ -78,19 +78,6 @@ export default function Home() {
       />
 
       <div style={{ flex: 1, display: "flex", flexDirection: "column" }}>
-        <div style={{ padding: 5 }}>
-          <VoiceToggle
-            enabled={enabled}
-            toggle={() => setEnabled(!enabled)}
-          />
-          <VoiceSettings
-            rate={rate}
-            setRate={setRate}
-            pitch={pitch}
-            setPitch={setPitch}
-          />
-        </div>
-
         <ChatWindow messages={activeChat?.messages || []} />
 
         {isStreaming && (
