@@ -2,31 +2,33 @@
   "name": "thinksy",
   "version": "1.0.0",
   "private": true,
-  "description": "Thinksy AI chatbot built with Next.js",
+
   "scripts": {
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint",
-    "type-check": "tsc --noEmit"
+    "lint": "next lint"
   },
+
   "dependencies": {
-    "@supabase/supabase-js": "^2.45.0",
-    "katex": "^0.16.11",
     "next": "15.5.7",
-    "pdfjs-dist": "^4.4.168",
     "react": "19.1.0",
     "react-dom": "19.1.0",
-    "react-katex": "^3.0.1",
+    "lucide-react": "^0.511.0",
+    "@supabase/supabase-js": "^2.45.0",
     "react-markdown": "^9.0.0",
+    "react-katex": "^3.0.1",
+    "katex": "^0.16.11",
+    "pdfjs-dist": "^4.4.168",
     "zod": "^3.24.2"
   },
+
   "devDependencies": {
-    "@tailwindcss/postcss": "^4.1.14",
     "@types/node": "^20.19.19",
     "@types/react": "^19.2.2",
     "@types/react-dom": "^19.2.1",
+    "typescript": "^5.9.3",
     "tailwindcss": "^4.1.14",
-    "typescript": "^5.9.3"
+    "@tailwindcss/postcss": "^4.1.14"
   }
 }
