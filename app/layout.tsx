@@ -1,6 +1,6 @@
 export const metadata = {
-  title: "Thinksy AI",
-  description: "Your AI assistant",
+  title: "Thinksy",
+  description: "AI Platform"
 };
 
 export default function RootLayout({
@@ -10,16 +10,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body
-        style={{
-          margin: 0,
-          background: "#0f0f0f",
-          color: "#fff",
-          fontFamily: "Arial, sans-serif",
-        }}
-      >
-        {children}
-      </body>
+      <body>{children}</body>
     </html>
   );
 }
