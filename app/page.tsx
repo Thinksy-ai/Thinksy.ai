@@ -90,7 +90,7 @@ export default function Home() {
 
   return (
     <div className="main-layout">
-      {/* MOBILE OVERLAY */}
+      {/* Mobile Overlay */}
       {mobileMenu && (
         <div
           onClick={() => setMobileMenu(false)}
@@ -98,19 +98,19 @@ export default function Home() {
             position: "fixed",
             inset: 0,
             background: "rgba(0,0,0,0.55)",
-            zIndex: 30,
+            zIndex: 20,
           }}
         />
       )}
 
-      {/* SIDEBAR */}
+      {/* Sidebar */}
       <div
         style={{
-          position: window.innerWidth <= 768 ? "fixed" : "relative",
-          left: mobileMenu ? 0 : window.innerWidth <= 768 ? -320 : 0,
+          position: "fixed",
           top: 0,
+          left: mobileMenu ? 0 : -320,
           bottom: 0,
-          zIndex: 40,
+          zIndex: 30,
           transition: "0.25s ease",
         }}
       >
@@ -124,31 +124,46 @@ export default function Home() {
         />
       </div>
 
-      {/* MAIN */}
+      {/* Desktop Sidebar Space */}
+      <div
+        style={{
+          width: "260px",
+          flexShrink: 0,
+        }}
+        className="desktop-only"
+      />
+
+      {/* Main Content */}
       <main className="chat-shell">
-        {/* HEADER */}
+        {/* Header */}
         <header className="chat-header">
           <div
             style={{
               display: "flex",
-              alignItems: "center",
-              gap: 12,
-              width: "100%",
               justifyContent: "space-between",
+              alignItems: "center",
+              width: "100%",
+              gap: "12px",
             }}
           >
-            <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: "12px",
+              }}
+            >
               <button
                 onClick={() => setMobileMenu(true)}
                 style={{
+                  width: "38px",
+                  height: "38px",
+                  borderRadius: "12px",
+                  border: "1px solid #222",
                   background: "#111",
                   color: "#fff",
-                  border: "1px solid #222",
-                  width: 38,
-                  height: 38,
-                  borderRadius: 12,
+                  fontSize: "18px",
                   cursor: "pointer",
-                  fontSize: 18,
                 }}
               >
                 ☰
@@ -156,9 +171,8 @@ export default function Home() {
 
               <span
                 style={{
+                  fontSize: "18px",
                   fontWeight: 700,
-                  fontSize: 18,
-                  letterSpacing: "-0.3px",
                 }}
               >
                 Thinksy
@@ -168,12 +182,12 @@ export default function Home() {
             <button
               onClick={newChat}
               style={{
+                border: "none",
                 background: "#fff",
                 color: "#000",
-                border: "none",
                 padding: "10px 14px",
-                borderRadius: 14,
-                fontWeight: 600,
+                borderRadius: "14px",
+                fontWeight: 700,
                 cursor: "pointer",
               }}
             >
@@ -182,7 +196,7 @@ export default function Home() {
           </div>
         </header>
 
-        {/* CHAT */}
+        {/* Chat Area */}
         <section className="chat-window">
           {activeChat?.messages?.length ? (
             <ChatWindow messages={activeChat.messages} />
@@ -191,16 +205,15 @@ export default function Home() {
               style={{
                 margin: "auto",
                 textAlign: "center",
-                opacity: 0.95,
-                maxWidth: 700,
-                padding: 20,
+                maxWidth: "700px",
+                padding: "20px",
               }}
             >
               <h1
                 style={{
-                  fontSize: "clamp(28px,6vw,52px)",
-                  marginBottom: 12,
+                  fontSize: "48px",
                   fontWeight: 800,
+                  marginBottom: "12px",
                 }}
               >
                 Thinksy
@@ -208,36 +221,32 @@ export default function Home() {
 
               <p
                 style={{
-                  color: "#9ca3af",
-                  fontSize: 16,
+                  color: "#999",
+                  fontSize: "16px",
                   lineHeight: 1.6,
                 }}
               >
-                Ask anything. Write, code, research, solve maths,
-                brainstorm ideas, and chat with your AI assistant.
+                Ask anything. Chat, code, write, solve math,
+                analyze files, and create with AI.
               </p>
             </div>
           )}
         </section>
 
-        {/* STREAMING */}
+        {/* Loading */}
         {(loading || isStreaming) && (
-          <div
-            style={{
-              padding: "0 18px 12px",
-            }}
-          >
+          <div style={{ padding: "0 18px 12px" }}>
             <TypingDots />
 
             <button
               onClick={stop}
               style={{
-                marginTop: 10,
+                marginTop: "10px",
+                border: "1px solid #222",
                 background: "#111",
                 color: "#fff",
-                border: "1px solid #222",
                 padding: "10px 14px",
-                borderRadius: 14,
+                borderRadius: "14px",
                 cursor: "pointer",
               }}
             >
@@ -246,7 +255,7 @@ export default function Home() {
           </div>
         )}
 
-        {/* INPUT */}
+        {/* Input */}
         <footer className="chat-input-wrap">
           <ChatInput
             input={input}
