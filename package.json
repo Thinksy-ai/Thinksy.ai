@@ -2,27 +2,25 @@
   "name": "thinksy",
   "version": "1.0.0",
   "private": true,
-
   "scripts": {
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
     "lint": "next lint"
   },
-
   "dependencies": {
+    "@supabase/supabase-js": "^2.45.0",
+    "groq-sdk": "^0.16.0",
+    "lucide-react": "^0.511.0",
     "next": "15.5.7",
     "react": "19.1.0",
     "react-dom": "19.1.0",
-    "lucide-react": "^0.511.0",
-    "@supabase/supabase-js": "^2.45.0",
     "react-markdown": "^9.0.0",
     "react-katex": "^3.0.1",
     "katex": "^0.16.11",
     "pdfjs-dist": "^4.4.168",
     "zod": "^3.24.2"
   },
-
   "devDependencies": {
     "@types/node": "^20.19.19",
     "@types/react": "^19.2.2",
