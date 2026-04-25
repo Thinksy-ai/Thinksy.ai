@@ -1,269 +1,413 @@
 "use client";
 
-import { useState } from "react";
-
-import { useChats } from "../hooks/useChats";
-import { useStream } from "../hooks/useStream";
-
-import Sidebar from "../components/sidebar/Sidebar";
-import ChatWindow from "../components/chat/ChatWindow";
-import ChatInput from "../components/chat/ChatInput";
-import TypingDots from "../components/chat/TypingDots";
-
-import { askAI } from "../lib/ai/realAI";
-import { speakElevenLabs } from "../lib/voice/elevenlabs";
+import { useState, useEffect } from "react";
+import {
+  Menu,
+  Search,
+  MessageSquare,
+  Grid2X2,
+  Folder,
+  Briefcase,
+  PenSquare,
+  Mic,
+  Paperclip,
+  SlidersHorizontal,
+  ArrowUp,
+  Copy,
+  Volume2,
+  ThumbsUp,
+  ThumbsDown,
+  RotateCcw,
+  Video,
+  MoreHorizontal,
+  X,
+} from "lucide-react";
 
 export default function Home() {
-  const {
-    chats,
-    activeChat,
-    activeId,
-    setActiveId,
-    addMessage,
-    updateLastMessage,
-    newChat,
-    renameChat,
-    deleteChat,
-  } = useChats();
-
-  const { startStream, stop, isStreaming } = useStream();
-
   const [input, setInput] = useState("");
-  const [loading, setLoading] = useState(false);
   const [mobileMenu, setMobileMenu] = useState(false);
+  const [voiceOpen, setVoiceOpen] = useState(false);
+  const [messages, setMessages] = useState([
+    {
+      role: "assistant",
+      text: "Welcome to Thinksy. Ask anything.",
+    },
+  ]);
 
-  const callAI = async (messages: any[]) => {
-    try {
-      setLoading(true);
+  const [typing, setTyping] = useState(false);
 
-      const reply = await askAI(messages);
+  const sendMessage = () => {
+    if (!input.trim()) return;
 
-      addMessage({
-        role: "assistant",
-        content: "",
-      });
+    const userText = input;
 
-      let finalText = "";
-
-      await startStream(reply, (chunk: string) => {
-        finalText = chunk;
-        updateLastMessage(chunk);
-      });
-
-      if (finalText) {
-        speakElevenLabs(finalText);
-      }
-    } catch (error) {
-      console.error(error);
-
-      addMessage({
-        role: "assistant",
-        content: "⚠️ Something went wrong. Please try again.",
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const send = async (file?: any) => {
-    if (!input && !file) return;
-
-    let content = input;
-
-    if (file) {
-      if (file.type === "image") {
-        content += `\n[Image: ${file.name}]`;
-      } else {
-        content += `\n${file.data}`;
-      }
-    }
-
-    addMessage({
-      role: "user",
-      content,
-    });
-
+    setMessages((prev) => [...prev, { role: "user", text: userText }]);
     setInput("");
+    setTyping(true);
 
-    await callAI(activeChat?.messages || []);
+    setTimeout(() => {
+      setTyping(false);
+      setMessages((prev) => [
+        ...prev,
+        {
+          role: "assistant",
+          text:
+            "This is a demo AI response. Connect your API in lib/ai to make Thinksy fully live.",
+        },
+      ]);
+    }, 1200);
   };
 
   return (
-    <div className="main-layout">
-      {/* Mobile Overlay */}
-      {mobileMenu && (
-        <div
-          onClick={() => setMobileMenu(false)}
-          style={{
-            position: "fixed",
-            inset: 0,
-            background: "rgba(0,0,0,0.55)",
-            zIndex: 20,
-          }}
-        />
-      )}
+    <main className="thinksy-app">
+      {/* SIDEBAR */}
+      <aside className={`sidebar ${mobileMenu ? "show" : ""}`}>
+        <div className="searchBox">
+          <Search size={18} />
+          <span>Search</span>
+        </div>
 
-      {/* Sidebar */}
-      <div
-        style={{
-          position: "fixed",
-          top: 0,
-          left: mobileMenu ? 0 : -320,
-          bottom: 0,
-          zIndex: 30,
-          transition: "0.25s ease",
-        }}
-      >
-        <Sidebar
-          chats={chats}
-          activeId={activeId}
-          setActiveId={setActiveId}
-          newChat={newChat}
-          renameChat={renameChat}
-          deleteChat={deleteChat}
-        />
-      </div>
+        <nav>
+          <button className="navBtn active">
+            <MessageSquare size={18} />
+            <span>Chat</span>
+          </button>
 
-      {/* Desktop Sidebar Space */}
-      <div
-        style={{
-          width: "260px",
-          flexShrink: 0,
-        }}
-        className="desktop-only"
-      />
+          <button className="navBtn">
+            <Grid2X2 size={18} />
+            <span>Explore</span>
+          </button>
 
-      {/* Main Content */}
-      <main className="chat-shell">
-        {/* Header */}
-        <header className="chat-header">
-          <div
-            style={{
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "center",
-              width: "100%",
-              gap: "12px",
-            }}
+          <button className="navBtn">
+            <Folder size={18} />
+            <span>Library</span>
+          </button>
+
+          <div className="sectionTitle">Projects</div>
+
+          <button className="navBtn">
+            <Briefcase size={18} />
+            <span>Work</span>
+          </button>
+        </nav>
+      </aside>
+
+      {/* MAIN */}
+      <section className="mainPanel">
+        {/* TOP BAR */}
+        <header className="topBar">
+          <button
+            className="iconBtn"
+            onClick={() => setMobileMenu(!mobileMenu)}
           >
-            <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: "12px",
-              }}
-            >
-              <button
-                onClick={() => setMobileMenu(true)}
-                style={{
-                  width: "38px",
-                  height: "38px",
-                  borderRadius: "12px",
-                  border: "1px solid #222",
-                  background: "#111",
-                  color: "#fff",
-                  fontSize: "18px",
-                  cursor: "pointer",
-                }}
-              >
-                ☰
-              </button>
+            <Menu size={20} />
+          </button>
 
-              <span
-                style={{
-                  fontSize: "18px",
-                  fontWeight: 700,
-                }}
-              >
-                Thinksy
-              </span>
-            </div>
+          <div className="title">Chat</div>
 
-            <button
-              onClick={newChat}
-              style={{
-                border: "none",
-                background: "#fff",
-                color: "#000",
-                padding: "10px 14px",
-                borderRadius: "14px",
-                fontWeight: 700,
-                cursor: "pointer",
-              }}
-            >
-              New Chat
-            </button>
-          </div>
+          <button className="iconBtn">
+            <PenSquare size={20} />
+          </button>
         </header>
 
-        {/* Chat Area */}
-        <section className="chat-window">
-          {activeChat?.messages?.length ? (
-            <ChatWindow messages={activeChat.messages} />
-          ) : (
+        {/* CHAT */}
+        <div className="chatArea">
+          {messages.map((msg, i) => (
             <div
-              style={{
-                margin: "auto",
-                textAlign: "center",
-                maxWidth: "700px",
-                padding: "20px",
-              }}
+              key={i}
+              className={`bubble ${msg.role === "user" ? "user" : "ai"}`}
             >
-              <h1
-                style={{
-                  fontSize: "48px",
-                  fontWeight: 800,
-                  marginBottom: "12px",
-                }}
-              >
-                Thinksy
-              </h1>
+              {msg.text}
 
-              <p
-                style={{
-                  color: "#999",
-                  fontSize: "16px",
-                  lineHeight: 1.6,
-                }}
-              >
-                Ask anything. Chat, code, write, solve math,
-                analyze files, and create with AI.
-              </p>
+              {msg.role === "assistant" && (
+                <div className="tools">
+                  <button><Copy size={16} /></button>
+                  <button><Volume2 size={16} /></button>
+                  <button><ThumbsUp size={16} /></button>
+                  <button><ThumbsDown size={16} /></button>
+                  <button><RotateCcw size={16} /></button>
+                </div>
+              )}
+            </div>
+          ))}
+
+          {typing && (
+            <div className="bubble ai">
+              Thinking...
             </div>
           )}
-        </section>
+        </div>
 
-        {/* Loading */}
-        {(loading || isStreaming) && (
-          <div style={{ padding: "0 18px 12px" }}>
-            <TypingDots />
+        {/* INPUT */}
+        <div className="inputWrap">
+          <div className="inputBox">
+            <input
+              placeholder="Ask anything"
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && sendMessage()}
+            />
 
-            <button
-              onClick={stop}
-              style={{
-                marginTop: "10px",
-                border: "1px solid #222",
-                background: "#111",
-                color: "#fff",
-                padding: "10px 14px",
-                borderRadius: "14px",
-                cursor: "pointer",
-              }}
-            >
-              Stop generating
+            <div className="inputTools">
+              <button><Paperclip size={18} /></button>
+              <button><SlidersHorizontal size={18} /></button>
+              <button onClick={() => setVoiceOpen(true)}>
+                <Mic size={18} />
+              </button>
+
+              <button className="sendBtn" onClick={sendMessage}>
+                <ArrowUp size={18} />
+              </button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* VOICE PANEL */}
+      {voiceOpen && (
+        <div className="voicePanel">
+          <div className="voiceTop">
+            <button><Video size={18} /></button>
+            <button><Mic size={18} /></button>
+            <button><MoreHorizontal size={18} /></button>
+            <button onClick={() => setVoiceOpen(false)}>
+              <X size={18} />
             </button>
           </div>
-        )}
 
-        {/* Input */}
-        <footer className="chat-input-wrap">
-          <ChatInput
-            input={input}
-            setInput={setInput}
-            send={send}
-          />
-        </footer>
-      </main>
-    </div>
+          <div className="orb"></div>
+        </div>
+      )}
+
+      <style jsx global>{`
+        * {
+          margin: 0;
+          padding: 0;
+          box-sizing: border-box;
+        }
+
+        body {
+          background: #000;
+          color: #fff;
+          font-family: Inter, sans-serif;
+          overflow: hidden;
+        }
+
+        .thinksy-app {
+          height: 100vh;
+          display: flex;
+          background: #000;
+        }
+
+        .sidebar {
+          width: 260px;
+          background: #0b0b0b;
+          border-right: 1px solid #161616;
+          padding: 14px;
+        }
+
+        .searchBox {
+          height: 44px;
+          border-radius: 14px;
+          background: #151515;
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          padding: 0 14px;
+          color: #9e9e9e;
+          margin-bottom: 16px;
+        }
+
+        .navBtn {
+          width: 100%;
+          height: 46px;
+          border: none;
+          background: transparent;
+          color: #d7d7d7;
+          display: flex;
+          gap: 12px;
+          align-items: center;
+          padding: 0 14px;
+          border-radius: 14px;
+          margin-bottom: 8px;
+        }
+
+        .navBtn.active,
+        .navBtn:hover {
+          background: #171717;
+        }
+
+        .sectionTitle {
+          color: #666;
+          font-size: 13px;
+          padding: 14px 10px 8px;
+        }
+
+        .mainPanel {
+          flex: 1;
+          display: flex;
+          flex-direction: column;
+        }
+
+        .topBar {
+          height: 64px;
+          border-bottom: 1px solid #141414;
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          padding: 0 14px;
+        }
+
+        .title {
+          font-size: 22px;
+          font-weight: 600;
+        }
+
+        .iconBtn {
+          width: 42px;
+          height: 42px;
+          border-radius: 14px;
+          border: none;
+          background: #111;
+          color: #fff;
+        }
+
+        .chatArea {
+          flex: 1;
+          overflow-y: auto;
+          padding: 20px;
+        }
+
+        .bubble {
+          max-width: 760px;
+          padding: 16px;
+          border-radius: 18px;
+          margin-bottom: 14px;
+          line-height: 1.5;
+        }
+
+        .bubble.ai {
+          background: #0f0f0f;
+          border: 1px solid #181818;
+        }
+
+        .bubble.user {
+          background: #181818;
+          margin-left: auto;
+        }
+
+        .tools {
+          display: flex;
+          gap: 8px;
+          margin-top: 12px;
+        }
+
+        .tools button,
+        .inputTools button {
+          width: 36px;
+          height: 36px;
+          border: none;
+          border-radius: 50%;
+          background: #151515;
+          color: #fff;
+        }
+
+        .inputWrap {
+          padding: 16px;
+        }
+
+        .inputBox {
+          background: #101010;
+          border: 1px solid #1a1a1a;
+          border-radius: 24px;
+          padding: 14px;
+        }
+
+        .inputBox input {
+          width: 100%;
+          background: transparent;
+          border: none;
+          color: #fff;
+          font-size: 16px;
+          outline: none;
+          margin-bottom: 12px;
+        }
+
+        .inputTools {
+          display: flex;
+          gap: 10px;
+          justify-content: flex-end;
+        }
+
+        .sendBtn {
+          background: #fff !important;
+          color: #000 !important;
+        }
+
+        .voicePanel {
+          position: fixed;
+          right: 20px;
+          top: 90px;
+          width: 290px;
+          height: 430px;
+          background: #090909;
+          border: 1px solid #1a1a1a;
+          border-radius: 28px;
+          padding: 18px;
+        }
+
+        .voiceTop {
+          display: flex;
+          justify-content: space-between;
+        }
+
+        .voiceTop button {
+          width: 40px;
+          height: 40px;
+          border-radius: 50%;
+          border: none;
+          background: #151515;
+          color: #fff;
+        }
+
+        .orb {
+          width: 150px;
+          height: 150px;
+          border-radius: 50%;
+          margin: 90px auto 0;
+          background: radial-gradient(circle at 35% 30%, #fff, #1f8fff);
+        }
+
+        @media (max-width: 900px) {
+          .sidebar {
+            position: fixed;
+            left: -280px;
+            top: 0;
+            bottom: 0;
+            z-index: 20;
+          }
+
+          .sidebar.show {
+            left: 0;
+          }
+
+          .voicePanel {
+            left: 50%;
+            transform: translateX(-50%);
+            right: auto;
+            width: calc(100% - 24px);
+            max-width: 360px;
+          }
+
+          .title {
+            font-size: 20px;
+          }
+
+          .bubble {
+            max-width: 100%;
+          }
+        }
+      `}</style>
+    </main>
   );
 }
