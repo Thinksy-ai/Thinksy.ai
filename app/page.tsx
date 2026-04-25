@@ -1,22 +1,5 @@
 "use client";
 
-/*
-THINKSY - FULL app/page.tsx
-Uses:
-- Same black premium layout
-- Mobile responsive
-- Groq API backend (/api/chat)
-- ElevenLabs browser TTS route (/api/tts optional)
-- Typing states
-- Copy messages
-- Clear chat
-- Voice panel
-- Better scrolling
-- Cleaner structure
-
-Put this in: app/page.tsx
-*/
-
 import { useEffect, useRef, useState } from "react";
 import {
   Menu,
@@ -52,25 +35,24 @@ export default function Home() {
   const [mobileMenu, setMobileMenu] = useState(false);
   const [voiceOpen, setVoiceOpen] = useState(false);
   const [typing, setTyping] = useState(false);
-  const [loadingVoice, setLoadingVoice] = useState(false);
 
   const [messages, setMessages] = useState<Msg[]>([
     {
       role: "assistant",
-      text: "Welcome to Thinksy. I am ready.",
+      text: "Welcome to Thinksy. Ask anything.",
     },
   ]);
 
   const chatRef = useRef<HTMLDivElement>(null);
 
-  /* auto scroll */
   useEffect(() => {
     if (chatRef.current) {
       chatRef.current.scrollTop = chatRef.current.scrollHeight;
     }
   }, [messages, typing]);
 
-  /* SEND MESSAGE */
+  /* ---------------- SEND MESSAGE ---------------- */
+
   const sendMessage = async () => {
     const text = input.trim();
     if (!text) return;
@@ -100,16 +82,16 @@ export default function Home() {
           role: "assistant",
           text:
             data.reply ||
-            "No response returned from Thinksy AI.",
+            "No response from Thinksy AI.",
         },
       ]);
-    } catch (error) {
+    } catch {
       setMessages((prev) => [
         ...prev,
         {
           role: "assistant",
           text:
-            "Connection failed. Check your Groq key or API route.",
+            "Connection error. Check API route.",
         },
       ]);
     }
@@ -117,7 +99,6 @@ export default function Home() {
     setTyping(false);
   };
 
-  /* ENTER SEND */
   const onEnter = (e: any) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
@@ -125,14 +106,31 @@ export default function Home() {
     }
   };
 
-  /* COPY */
+  /* ---------------- BUTTON FUNCTIONS ---------------- */
+
   const copyText = async (text: string) => {
     try {
       await navigator.clipboard.writeText(text);
-    } catch {}
+    } catch {
+      alert("Copy failed");
+    }
   };
 
-  /* CLEAR */
+  const speakText = (text: string) => {
+    speechSynthesis.cancel();
+
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.rate = 1;
+    utterance.pitch = 1;
+    utterance.volume = 1;
+
+    speechSynthesis.speak(utterance);
+  };
+
+  const stopVoice = () => {
+    speechSynthesis.cancel();
+  };
+
   const clearChat = () => {
     setMessages([
       {
@@ -142,26 +140,35 @@ export default function Home() {
     ]);
   };
 
-  /* TTS */
-  const speak = async (text: string) => {
-    try {
-      setLoadingVoice(true);
+  const newChat = () => {
+    clearChat();
+    setMobileMenu(false);
+  };
 
-      const res = await fetch("/api/tts", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ text }),
-      });
+  const regenerateLast = async () => {
+    const lastUser = [...messages]
+      .reverse()
+      .find((m) => m.role === "user");
 
-      const blob = await res.blob();
-      const url = URL.createObjectURL(blob);
-      const audio = new Audio(url);
-      audio.play();
-    } catch {}
+    if (!lastUser) return;
 
-    setLoadingVoice(false);
+    setInput(lastUser.text);
+  };
+
+  const likeMessage = () => {
+    alert("Thanks for feedback.");
+  };
+
+  const dislikeMessage = () => {
+    alert("Feedback received.");
+  };
+
+  const fakeMic = () => {
+    alert("Voice input can be added next.");
+  };
+
+  const uploadFile = () => {
+    alert("Upload feature ready for next phase.");
   };
 
   return (
@@ -200,7 +207,7 @@ export default function Home() {
           Work
         </button>
 
-        <button className="nav" onClick={clearChat}>
+        <button className="nav" onClick={newChat}>
           <Plus size={18} />
           New Chat
         </button>
@@ -208,7 +215,7 @@ export default function Home() {
 
       {/* MAIN */}
       <section className="main">
-        {/* HEADER */}
+        {/* TOPBAR */}
         <header className="topbar">
           <button
             className="icon"
@@ -224,7 +231,7 @@ export default function Home() {
               <Trash2 size={18} />
             </button>
 
-            <button className="icon">
+            <button className="icon" onClick={newChat}>
               <PenSquare size={18} />
             </button>
           </div>
@@ -236,35 +243,55 @@ export default function Home() {
             <div
               key={i}
               className={`wrap ${
-                msg.role === "user" ? "right" : "left"
+                msg.role === "user"
+                  ? "right"
+                  : "left"
               }`}
             >
               <div
                 className={`bubble ${
-                  msg.role === "user" ? "user" : "ai"
+                  msg.role === "user"
+                    ? "user"
+                    : "ai"
                 }`}
               >
                 {msg.text}
 
                 {msg.role === "assistant" && (
                   <div className="tools">
-                    <button onClick={() => copyText(msg.text)}>
+                    <button
+                      onClick={() =>
+                        copyText(msg.text)
+                      }
+                    >
                       <Copy size={15} />
                     </button>
 
-                    <button onClick={() => speak(msg.text)}>
+                    <button
+                      onClick={() =>
+                        speakText(msg.text)
+                      }
+                    >
                       <Volume2 size={15} />
                     </button>
 
-                    <button>
+                    <button
+                      onClick={likeMessage}
+                    >
                       <ThumbsUp size={15} />
                     </button>
 
-                    <button>
+                    <button
+                      onClick={dislikeMessage}
+                    >
                       <ThumbsDown size={15} />
                     </button>
 
-                    <button>
+                    <button
+                      onClick={
+                        regenerateLast
+                      }
+                    >
                       <RotateCcw size={15} />
                     </button>
                   </div>
@@ -289,29 +316,43 @@ export default function Home() {
               rows={1}
               placeholder="Ask anything"
               value={input}
-              onChange={(e) => setInput(e.target.value)}
+              onChange={(e) =>
+                setInput(
+                  e.target.value
+                )
+              }
               onKeyDown={onEnter}
             />
 
             <div className="bottomRow">
               <div className="leftTools">
-                <button className="mini">
+                <button
+                  className="mini"
+                  onClick={uploadFile}
+                >
                   <Paperclip size={17} />
                 </button>
 
-                <button className="mini">
+                <button
+                  className="mini"
+                >
                   <SlidersHorizontal size={17} />
                 </button>
 
                 <button
                   className="mini"
-                  onClick={() => setVoiceOpen(true)}
+                  onClick={() =>
+                    setVoiceOpen(true)
+                  }
                 >
                   <Mic size={17} />
                 </button>
               </div>
 
-              <button className="send" onClick={sendMessage}>
+              <button
+                className="send"
+                onClick={sendMessage}
+              >
                 <ArrowUp size={18} />
               </button>
             </div>
@@ -323,21 +364,31 @@ export default function Home() {
       {voiceOpen && (
         <div className="voiceCard">
           <div className="voiceHead">
-            <button className="mini">
+            <button
+              className="mini"
+            >
               <Video size={16} />
             </button>
 
-            <button className="mini">
+            <button
+              className="mini"
+              onClick={fakeMic}
+            >
               <Mic size={16} />
             </button>
 
-            <button className="mini">
+            <button
+              className="mini"
+              onClick={stopVoice}
+            >
               <MoreHorizontal size={16} />
             </button>
 
             <button
               className="mini"
-              onClick={() => setVoiceOpen(false)}
+              onClick={() =>
+                setVoiceOpen(false)
+              }
             >
               <X size={16} />
             </button>
@@ -346,7 +397,7 @@ export default function Home() {
           <div className="orb" />
 
           <div className="voiceText">
-            {loadingVoice ? "Speaking..." : "Voice Ready"}
+            Voice Ready
           </div>
         </div>
       )}
@@ -362,7 +413,8 @@ export default function Home() {
         body {
           background: #000;
           color: #fff;
-          font-family: Inter, Arial, sans-serif;
+          font-family: Inter, Arial,
+            sans-serif;
           overflow: hidden;
         }
 
@@ -389,8 +441,8 @@ export default function Home() {
           display: flex;
           align-items: center;
           gap: 10px;
-          margin-bottom: 14px;
           padding: 0 10px;
+          margin-bottom: 12px;
           font-weight: 600;
         }
 
@@ -423,7 +475,7 @@ export default function Home() {
         .label {
           color: #666;
           font-size: 13px;
-          padding: 12px 8px 8px;
+          padding: 12px 8px;
         }
 
         .main {
@@ -464,7 +516,7 @@ export default function Home() {
         .chat {
           flex: 1;
           overflow-y: auto;
-          padding: 22px;
+          padding: 20px;
         }
 
         .wrap {
@@ -498,16 +550,16 @@ export default function Home() {
         }
 
         .tools {
-          margin-top: 12px;
           display: flex;
           gap: 8px;
+          margin-top: 12px;
         }
 
         .tools button {
           width: 34px;
           height: 34px;
-          border-radius: 50%;
           border: none;
+          border-radius: 50%;
           background: #151515;
           color: #fff;
         }
@@ -519,25 +571,23 @@ export default function Home() {
         .box {
           background: #0f0f0f;
           border: 1px solid #1a1a1a;
-          border-radius: 26px;
+          border-radius: 24px;
           padding: 14px;
         }
 
         textarea {
           width: 100%;
-          resize: none;
           border: none;
+          resize: none;
           outline: none;
           background: transparent;
           color: #fff;
           font-size: 16px;
-          min-height: 32px;
         }
 
         .bottomRow {
           display: flex;
           justify-content: space-between;
-          align-items: center;
           margin-top: 12px;
         }
 
@@ -582,7 +632,7 @@ export default function Home() {
 
         .voiceText {
           text-align: center;
-          color: #cfcfcf;
+          color: #ccc;
         }
 
         @media (max-width: 900px) {
@@ -598,20 +648,16 @@ export default function Home() {
             left: 0;
           }
 
+          .bubble {
+            max-width: 100%;
+          }
+
           .voiceCard {
             width: calc(100% - 24px);
             max-width: 360px;
             left: 50%;
             transform: translateX(-50%);
             right: auto;
-          }
-
-          .bubble {
-            max-width: 100%;
-          }
-
-          .title {
-            font-size: 20px;
           }
         }
       `}</style>
