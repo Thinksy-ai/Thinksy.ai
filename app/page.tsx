@@ -1,6 +1,23 @@
 "use client";
 
-import { useState, useEffect } from "react";
+/*
+THINKSY - FULL app/page.tsx
+Uses:
+- Same black premium layout
+- Mobile responsive
+- Groq API backend (/api/chat)
+- ElevenLabs browser TTS route (/api/tts optional)
+- Typing states
+- Copy messages
+- Clear chat
+- Voice panel
+- Better scrolling
+- Cleaner structure
+
+Put this in: app/page.tsx
+*/
+
+import { useEffect, useRef, useState } from "react";
 import {
   Menu,
   Search,
@@ -21,83 +38,180 @@ import {
   Video,
   MoreHorizontal,
   X,
+  Trash2,
+  Plus,
 } from "lucide-react";
+
+type Msg = {
+  role: "user" | "assistant";
+  text: string;
+};
 
 export default function Home() {
   const [input, setInput] = useState("");
   const [mobileMenu, setMobileMenu] = useState(false);
   const [voiceOpen, setVoiceOpen] = useState(false);
-  const [messages, setMessages] = useState([
+  const [typing, setTyping] = useState(false);
+  const [loadingVoice, setLoadingVoice] = useState(false);
+
+  const [messages, setMessages] = useState<Msg[]>([
     {
       role: "assistant",
-      text: "Welcome to Thinksy. Ask anything.",
+      text: "Welcome to Thinksy. I am ready.",
     },
   ]);
 
-  const [typing, setTyping] = useState(false);
+  const chatRef = useRef<HTMLDivElement>(null);
 
-  const sendMessage = () => {
-    if (!input.trim()) return;
+  /* auto scroll */
+  useEffect(() => {
+    if (chatRef.current) {
+      chatRef.current.scrollTop = chatRef.current.scrollHeight;
+    }
+  }, [messages, typing]);
 
-    const userText = input;
+  /* SEND MESSAGE */
+  const sendMessage = async () => {
+    const text = input.trim();
+    if (!text) return;
 
-    setMessages((prev) => [...prev, { role: "user", text: userText }]);
+    const updated = [...messages, { role: "user", text }];
+    setMessages(updated);
     setInput("");
     setTyping(true);
 
-    setTimeout(() => {
-      setTyping(false);
+    try {
+      const res = await fetch("/api/chat", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          message: text,
+          history: updated,
+        }),
+      });
+
+      const data = await res.json();
+
       setMessages((prev) => [
         ...prev,
         {
           role: "assistant",
           text:
-            "This is a demo AI response. Connect your API in lib/ai to make Thinksy fully live.",
+            data.reply ||
+            "No response returned from Thinksy AI.",
         },
       ]);
-    }, 1200);
+    } catch (error) {
+      setMessages((prev) => [
+        ...prev,
+        {
+          role: "assistant",
+          text:
+            "Connection failed. Check your Groq key or API route.",
+        },
+      ]);
+    }
+
+    setTyping(false);
+  };
+
+  /* ENTER SEND */
+  const onEnter = (e: any) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      sendMessage();
+    }
+  };
+
+  /* COPY */
+  const copyText = async (text: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+    } catch {}
+  };
+
+  /* CLEAR */
+  const clearChat = () => {
+    setMessages([
+      {
+        role: "assistant",
+        text: "New chat started.",
+      },
+    ]);
+  };
+
+  /* TTS */
+  const speak = async (text: string) => {
+    try {
+      setLoadingVoice(true);
+
+      const res = await fetch("/api/tts", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ text }),
+      });
+
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const audio = new Audio(url);
+      audio.play();
+    } catch {}
+
+    setLoadingVoice(false);
   };
 
   return (
-    <main className="thinksy-app">
+    <main className="app">
       {/* SIDEBAR */}
       <aside className={`sidebar ${mobileMenu ? "show" : ""}`}>
-        <div className="searchBox">
-          <Search size={18} />
-          <span>Search</span>
+        <div className="brand">
+          <div className="brandDot" />
+          <span>Thinksy</span>
         </div>
 
-        <nav>
-          <button className="navBtn active">
-            <MessageSquare size={18} />
-            <span>Chat</span>
-          </button>
+        <button className="searchBox">
+          <Search size={17} />
+          Search
+        </button>
 
-          <button className="navBtn">
-            <Grid2X2 size={18} />
-            <span>Explore</span>
-          </button>
+        <button className="nav active">
+          <MessageSquare size={18} />
+          Chat
+        </button>
 
-          <button className="navBtn">
-            <Folder size={18} />
-            <span>Library</span>
-          </button>
+        <button className="nav">
+          <Grid2X2 size={18} />
+          Explore
+        </button>
 
-          <div className="sectionTitle">Projects</div>
+        <button className="nav">
+          <Folder size={18} />
+          Library
+        </button>
 
-          <button className="navBtn">
-            <Briefcase size={18} />
-            <span>Work</span>
-          </button>
-        </nav>
+        <div className="label">Projects</div>
+
+        <button className="nav">
+          <Briefcase size={18} />
+          Work
+        </button>
+
+        <button className="nav" onClick={clearChat}>
+          <Plus size={18} />
+          New Chat
+        </button>
       </aside>
 
       {/* MAIN */}
-      <section className="mainPanel">
-        {/* TOP BAR */}
-        <header className="topBar">
+      <section className="main">
+        {/* HEADER */}
+        <header className="topbar">
           <button
-            className="iconBtn"
+            className="icon"
             onClick={() => setMobileMenu(!mobileMenu)}
           >
             <Menu size={20} />
@@ -105,57 +219,99 @@ export default function Home() {
 
           <div className="title">Chat</div>
 
-          <button className="iconBtn">
-            <PenSquare size={20} />
-          </button>
+          <div className="row">
+            <button className="icon" onClick={clearChat}>
+              <Trash2 size={18} />
+            </button>
+
+            <button className="icon">
+              <PenSquare size={18} />
+            </button>
+          </div>
         </header>
 
         {/* CHAT */}
-        <div className="chatArea">
+        <div className="chat" ref={chatRef}>
           {messages.map((msg, i) => (
             <div
               key={i}
-              className={`bubble ${msg.role === "user" ? "user" : "ai"}`}
+              className={`wrap ${
+                msg.role === "user" ? "right" : "left"
+              }`}
             >
-              {msg.text}
+              <div
+                className={`bubble ${
+                  msg.role === "user" ? "user" : "ai"
+                }`}
+              >
+                {msg.text}
 
-              {msg.role === "assistant" && (
-                <div className="tools">
-                  <button><Copy size={16} /></button>
-                  <button><Volume2 size={16} /></button>
-                  <button><ThumbsUp size={16} /></button>
-                  <button><ThumbsDown size={16} /></button>
-                  <button><RotateCcw size={16} /></button>
-                </div>
-              )}
+                {msg.role === "assistant" && (
+                  <div className="tools">
+                    <button onClick={() => copyText(msg.text)}>
+                      <Copy size={15} />
+                    </button>
+
+                    <button onClick={() => speak(msg.text)}>
+                      <Volume2 size={15} />
+                    </button>
+
+                    <button>
+                      <ThumbsUp size={15} />
+                    </button>
+
+                    <button>
+                      <ThumbsDown size={15} />
+                    </button>
+
+                    <button>
+                      <RotateCcw size={15} />
+                    </button>
+                  </div>
+                )}
+              </div>
             </div>
           ))}
 
           {typing && (
-            <div className="bubble ai">
-              Thinking...
+            <div className="wrap left">
+              <div className="bubble ai">
+                Thinking...
+              </div>
             </div>
           )}
         </div>
 
         {/* INPUT */}
-        <div className="inputWrap">
-          <div className="inputBox">
-            <input
+        <div className="composer">
+          <div className="box">
+            <textarea
+              rows={1}
               placeholder="Ask anything"
               value={input}
               onChange={(e) => setInput(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && sendMessage()}
+              onKeyDown={onEnter}
             />
 
-            <div className="inputTools">
-              <button><Paperclip size={18} /></button>
-              <button><SlidersHorizontal size={18} /></button>
-              <button onClick={() => setVoiceOpen(true)}>
-                <Mic size={18} />
-              </button>
+            <div className="bottomRow">
+              <div className="leftTools">
+                <button className="mini">
+                  <Paperclip size={17} />
+                </button>
 
-              <button className="sendBtn" onClick={sendMessage}>
+                <button className="mini">
+                  <SlidersHorizontal size={17} />
+                </button>
+
+                <button
+                  className="mini"
+                  onClick={() => setVoiceOpen(true)}
+                >
+                  <Mic size={17} />
+                </button>
+              </div>
+
+              <button className="send" onClick={sendMessage}>
                 <ArrowUp size={18} />
               </button>
             </div>
@@ -165,17 +321,33 @@ export default function Home() {
 
       {/* VOICE PANEL */}
       {voiceOpen && (
-        <div className="voicePanel">
-          <div className="voiceTop">
-            <button><Video size={18} /></button>
-            <button><Mic size={18} /></button>
-            <button><MoreHorizontal size={18} /></button>
-            <button onClick={() => setVoiceOpen(false)}>
-              <X size={18} />
+        <div className="voiceCard">
+          <div className="voiceHead">
+            <button className="mini">
+              <Video size={16} />
+            </button>
+
+            <button className="mini">
+              <Mic size={16} />
+            </button>
+
+            <button className="mini">
+              <MoreHorizontal size={16} />
+            </button>
+
+            <button
+              className="mini"
+              onClick={() => setVoiceOpen(false)}
+            >
+              <X size={16} />
             </button>
           </div>
 
-          <div className="orb"></div>
+          <div className="orb" />
+
+          <div className="voiceText">
+            {loadingVoice ? "Speaking..." : "Voice Ready"}
+          </div>
         </div>
       )}
 
@@ -186,14 +358,20 @@ export default function Home() {
           box-sizing: border-box;
         }
 
+        html,
         body {
           background: #000;
           color: #fff;
-          font-family: Inter, sans-serif;
+          font-family: Inter, Arial, sans-serif;
           overflow: hidden;
         }
 
-        .thinksy-app {
+        button,
+        textarea {
+          font-family: inherit;
+        }
+
+        .app {
           height: 100vh;
           display: flex;
           background: #000;
@@ -201,57 +379,62 @@ export default function Home() {
 
         .sidebar {
           width: 260px;
-          background: #0b0b0b;
+          background: #0a0a0a;
           border-right: 1px solid #161616;
           padding: 14px;
         }
 
-        .searchBox {
+        .brand {
           height: 44px;
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          margin-bottom: 14px;
+          padding: 0 10px;
+          font-weight: 600;
+        }
+
+        .brandDot {
+          width: 10px;
+          height: 10px;
+          border-radius: 50%;
+          background: #fff;
+        }
+
+        .searchBox,
+        .nav {
+          width: 100%;
+          height: 44px;
+          border: none;
           border-radius: 14px;
-          background: #151515;
+          margin-bottom: 8px;
+          background: #111;
+          color: #ddd;
           display: flex;
           align-items: center;
           gap: 10px;
           padding: 0 14px;
-          color: #9e9e9e;
-          margin-bottom: 16px;
         }
 
-        .navBtn {
-          width: 100%;
-          height: 46px;
-          border: none;
-          background: transparent;
-          color: #d7d7d7;
-          display: flex;
-          gap: 12px;
-          align-items: center;
-          padding: 0 14px;
-          border-radius: 14px;
-          margin-bottom: 8px;
-        }
-
-        .navBtn.active,
-        .navBtn:hover {
+        .nav.active {
           background: #171717;
         }
 
-        .sectionTitle {
+        .label {
           color: #666;
           font-size: 13px;
-          padding: 14px 10px 8px;
+          padding: 12px 8px 8px;
         }
 
-        .mainPanel {
+        .main {
           flex: 1;
           display: flex;
           flex-direction: column;
         }
 
-        .topBar {
+        .topbar {
           height: 64px;
-          border-bottom: 1px solid #141414;
+          border-bottom: 1px solid #151515;
           display: flex;
           align-items: center;
           justify-content: space-between;
@@ -263,119 +446,143 @@ export default function Home() {
           font-weight: 600;
         }
 
-        .iconBtn {
-          width: 42px;
-          height: 42px;
-          border-radius: 14px;
+        .row {
+          display: flex;
+          gap: 8px;
+        }
+
+        .icon,
+        .mini {
+          width: 40px;
+          height: 40px;
           border: none;
+          border-radius: 14px;
           background: #111;
           color: #fff;
         }
 
-        .chatArea {
+        .chat {
           flex: 1;
           overflow-y: auto;
-          padding: 20px;
+          padding: 22px;
+        }
+
+        .wrap {
+          display: flex;
+          margin-bottom: 14px;
+        }
+
+        .left {
+          justify-content: flex-start;
+        }
+
+        .right {
+          justify-content: flex-end;
         }
 
         .bubble {
           max-width: 760px;
           padding: 16px;
-          border-radius: 18px;
-          margin-bottom: 14px;
-          line-height: 1.5;
+          border-radius: 20px;
+          line-height: 1.55;
+          white-space: pre-wrap;
         }
 
         .bubble.ai {
           background: #0f0f0f;
-          border: 1px solid #181818;
+          border: 1px solid #1b1b1b;
         }
 
         .bubble.user {
-          background: #181818;
-          margin-left: auto;
+          background: #171717;
         }
 
         .tools {
+          margin-top: 12px;
           display: flex;
           gap: 8px;
-          margin-top: 12px;
         }
 
-        .tools button,
-        .inputTools button {
-          width: 36px;
-          height: 36px;
-          border: none;
+        .tools button {
+          width: 34px;
+          height: 34px;
           border-radius: 50%;
+          border: none;
           background: #151515;
           color: #fff;
         }
 
-        .inputWrap {
+        .composer {
           padding: 16px;
         }
 
-        .inputBox {
-          background: #101010;
+        .box {
+          background: #0f0f0f;
           border: 1px solid #1a1a1a;
-          border-radius: 24px;
+          border-radius: 26px;
           padding: 14px;
         }
 
-        .inputBox input {
+        textarea {
           width: 100%;
-          background: transparent;
+          resize: none;
           border: none;
+          outline: none;
+          background: transparent;
           color: #fff;
           font-size: 16px;
-          outline: none;
-          margin-bottom: 12px;
+          min-height: 32px;
         }
 
-        .inputTools {
+        .bottomRow {
           display: flex;
-          gap: 10px;
-          justify-content: flex-end;
+          justify-content: space-between;
+          align-items: center;
+          margin-top: 12px;
         }
 
-        .sendBtn {
-          background: #fff !important;
-          color: #000 !important;
+        .leftTools {
+          display: flex;
+          gap: 8px;
         }
 
-        .voicePanel {
+        .send {
+          width: 42px;
+          height: 42px;
+          border: none;
+          border-radius: 50%;
+          background: #fff;
+          color: #000;
+        }
+
+        .voiceCard {
           position: fixed;
-          right: 20px;
           top: 90px;
+          right: 18px;
           width: 290px;
-          height: 430px;
-          background: #090909;
-          border: 1px solid #1a1a1a;
+          height: 420px;
           border-radius: 28px;
+          background: #0a0a0a;
+          border: 1px solid #1a1a1a;
           padding: 18px;
         }
 
-        .voiceTop {
+        .voiceHead {
           display: flex;
           justify-content: space-between;
-        }
-
-        .voiceTop button {
-          width: 40px;
-          height: 40px;
-          border-radius: 50%;
-          border: none;
-          background: #151515;
-          color: #fff;
         }
 
         .orb {
           width: 150px;
           height: 150px;
           border-radius: 50%;
-          margin: 90px auto 0;
-          background: radial-gradient(circle at 35% 30%, #fff, #1f8fff);
+          margin: 95px auto 20px;
+          background: radial-gradient(circle at 35% 30%, #fff, #1787ff);
+        }
+
+        .voiceText {
+          text-align: center;
+          color: #cfcfcf;
         }
 
         @media (max-width: 900px) {
@@ -384,27 +591,27 @@ export default function Home() {
             left: -280px;
             top: 0;
             bottom: 0;
-            z-index: 20;
+            z-index: 50;
           }
 
           .sidebar.show {
             left: 0;
           }
 
-          .voicePanel {
+          .voiceCard {
+            width: calc(100% - 24px);
+            max-width: 360px;
             left: 50%;
             transform: translateX(-50%);
             right: auto;
-            width: calc(100% - 24px);
-            max-width: 360px;
-          }
-
-          .title {
-            font-size: 20px;
           }
 
           .bubble {
             max-width: 100%;
+          }
+
+          .title {
+            font-size: 20px;
           }
         }
       `}</style>
