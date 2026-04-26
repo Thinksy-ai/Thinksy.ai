@@ -225,13 +225,13 @@ export default function AuthPage() {
         }
 
         .glow1 {
-          background: #2f7cff;
+          background: #fff;
           top: -80px;
           left: -80px;
         }
 
         .glow2 {
-          background: #7c3aed;
+          background: #fff;
           bottom: -80px;
           right: -80px;
           animation-delay: 2s;
@@ -278,7 +278,7 @@ export default function AuthPage() {
           width: 52px;
           height: 52px;
           border-radius: 16px;
-          background: linear-gradient(135deg, #fff, #777);
+          background: linear-gradient(135deg, #fff, #fff);
           color: #000;
           font-size: 24px;
           font-weight: 900;
