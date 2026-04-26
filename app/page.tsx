@@ -1,7 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
-import Link from "next/link";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Menu,
   X,
@@ -20,8 +19,11 @@ import {
   ThumbsDown,
   RotateCcw,
   Trash2,
-  ChevronLeft,
 } from "lucide-react";
+
+/* =========================
+   TYPES
+========================= */
 
 type Role = "user" | "assistant";
 
@@ -36,216 +38,300 @@ type Chat = {
   messages: Msg[];
 };
 
+/* =========================
+   PAGE
+========================= */
+
 export default function Home() {
-  const [mobileMenu, setMobileMenu] = useState(false);
-  const [searchOpen, setSearchOpen] = useState(false);
-  const [voiceOpen, setVoiceOpen] = useState(false);
-  const [typing, setTyping] = useState(false);
+  const [mounted, setMounted] = useState(false);
+
+  const [tab, setTab] = useState<"chat" | "explore" | "library">("chat");
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+
   const [input, setInput] = useState("");
+  const [typing, setTyping] = useState(false);
+  const [voiceOpen, setVoiceOpen] = useState(false);
+
+  const [search, setSearch] = useState("");
 
   const [chats, setChats] = useState<Chat[]>([]);
   const [activeId, setActiveId] = useState<number>(1);
 
-  const bottomRef = useRef<HTMLDivElement>(null);
+  const chatEndRef = useRef<HTMLDivElement | null>(null);
+
+  /* =========================
+     INIT
+  ========================= */
 
   useEffect(() => {
+    setMounted(true);
+
     const saved = localStorage.getItem("thinksy_chats");
 
     if (saved) {
-      const parsed = JSON.parse(saved);
-      setChats(parsed);
-      setActiveId(parsed[0]?.id || 1);
-    } else {
-      const first = [
-        {
-          id: 1,
-          title: "New Chat",
-          messages: [
-            {
-              role: "assistant",
-              text: "Welcome to Thinksy. Ask anything.",
-            },
-          ],
-        },
-      ];
-
-      setChats(first);
+      try {
+        const parsed: Chat[] = JSON.parse(saved);
+        if (parsed.length > 0) {
+          setChats(parsed);
+          setActiveId(parsed[0].id);
+          return;
+        }
+      } catch {}
     }
+
+    const first: Chat[] = [
+      {
+        id: 1,
+        title: "New Chat",
+        messages: [
+          {
+            role: "assistant",
+            text: "Welcome to Thinksy. Ask anything.",
+          },
+        ],
+      },
+    ];
+
+    setChats(first);
+    setActiveId(1);
   }, []);
 
   useEffect(() => {
-    if (chats.length > 0) {
-      localStorage.setItem("thinksy_chats", JSON.stringify(chats));
-    }
-  }, [chats]);
+    if (!mounted) return;
+    localStorage.setItem("thinksy_chats", JSON.stringify(chats));
+  }, [chats, mounted]);
 
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [chats, typing]);
+    chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [chats, typing, activeId]);
 
-  const activeChat =
-    chats.find((chat) => chat.id === activeId) || chats[0];
+  /* =========================
+     DATA
+  ========================= */
+
+  const activeChat = useMemo(() => {
+    return chats.find((c) => c.id === activeId);
+  }, [chats, activeId]);
+
+  const filteredChats = useMemo(() => {
+    if (!search.trim()) return chats;
+
+    return chats.filter((c) =>
+      c.title.toLowerCase().includes(search.toLowerCase())
+    );
+  }, [search, chats]);
+
+  /* =========================
+     HELPERS
+  ========================= */
+
+  function updateActiveMessages(newMessages: Msg[]) {
+    setChats((prev) =>
+      prev.map((chat) =>
+        chat.id === activeId ? { ...chat, messages: newMessages } : chat
+      )
+    );
+  }
+
+  function updateTitleFromFirstUser(text: string) {
+    setChats((prev) =>
+      prev.map((chat) =>
+        chat.id === activeId && chat.title === "New Chat"
+          ? {
+              ...chat,
+              title: text.slice(0, 24) || "Chat",
+            }
+          : chat
+      )
+    );
+  }
+
+  /* =========================
+     CHAT ACTIONS
+  ========================= */
 
   function newChat() {
     const id = Date.now();
 
-    const chat: Chat = {
+    const fresh: Chat = {
       id,
-      title: "Fresh Chat",
+      title: "New Chat",
       messages: [
         {
           role: "assistant",
-          text: "New chat ready.",
+          text: "Fresh chat created. Ask anything.",
         },
       ],
     };
 
-    setChats((prev) => [chat, ...prev]);
+    setChats((prev) => [fresh, ...prev]);
     setActiveId(id);
-    setMobileMenu(false);
+    setTab("chat");
+    setSidebarOpen(false);
   }
 
   function deleteChat(id: number) {
-    const filtered = chats.filter((c) => c.id !== id);
+    const next = chats.filter((c) => c.id !== id);
 
-    if (filtered.length === 0) {
-      newChat();
+    if (next.length === 0) {
+      const fallback: Chat = {
+        id: 1,
+        title: "New Chat",
+        messages: [
+          {
+            role: "assistant",
+            text: "Welcome to Thinksy.",
+          },
+        ],
+      };
+
+      setChats([fallback]);
+      setActiveId(1);
       return;
     }
 
-    setChats(filtered);
-    setActiveId(filtered[0].id);
+    setChats(next);
+
+    if (activeId === id) {
+      setActiveId(next[0].id);
+    }
+  }
+
+  async function sendMessage() {
+    const text = input.trim();
+    if (!text || !activeChat) return;
+
+    const userMsg: Msg = {
+      role: "user",
+      text,
+    };
+
+    const updatedMessages: Msg[] = [...activeChat.messages, userMsg];
+
+    updateActiveMessages(updatedMessages);
+    updateTitleFromFirstUser(text);
+
+    setInput("");
+    setTyping(true);
+
+    setTimeout(() => {
+      const aiMsg: Msg = {
+        role: "assistant",
+        text:
+          "Thinksy AI reply: " +
+          text +
+          ". Connect Groq API route later for real live responses.",
+      };
+
+      setTyping(false);
+
+      updateActiveMessages([...updatedMessages, aiMsg]);
+    }, 1100);
+  }
+
+  function regenerate() {
+    if (!activeChat) return;
+
+    setTyping(true);
+
+    setTimeout(() => {
+      const aiMsg: Msg = {
+        role: "assistant",
+        text: "Regenerated response from Thinksy.",
+      };
+
+      setTyping(false);
+
+      updateActiveMessages([...activeChat.messages, aiMsg]);
+    }, 900);
+  }
+
+  function speak(text: string) {
+    if (typeof window === "undefined") return;
+
+    const utter = new SpeechSynthesisUtterance(text);
+    speechSynthesis.speak(utter);
   }
 
   function copyText(text: string) {
     navigator.clipboard.writeText(text);
   }
 
-  function speakText(text: string) {
-    const utter = new SpeechSynthesisUtterance(text);
-    speechSynthesis.speak(utter);
-  }
-
-  async function sendMessage() {
-    const text = input.trim();
-    if (!text) return;
-
-    const updated = chats.map((chat) =>
-      chat.id === activeId
-        ? {
-            ...chat,
-            title:
-              chat.title === "New Chat" ||
-              chat.title === "Fresh Chat"
-                ? text.slice(0, 25)
-                : chat.title,
-            messages: [
-              ...chat.messages,
-              { role: "user", text },
-            ],
-          }
-        : chat
-    );
-
-    setChats(updated);
-    setInput("");
-    setTyping(true);
-
-    setTimeout(() => {
-      const reply = `Thinksy response: ${text}`;
-
-      setChats((prev) =>
-        prev.map((chat) =>
-          chat.id === activeId
-            ? {
-                ...chat,
-                messages: [
-                  ...chat.messages,
-                  {
-                    role: "assistant",
-                    text: reply,
-                  },
-                ],
-              }
-            : chat
-        )
-      );
-
-      setTyping(false);
-    }, 1200);
-  }
+  /* =========================
+     RENDER
+  ========================= */
 
   return (
     <main className="app">
-      {mobileMenu && (
-        <div
-          className="overlay"
-          onClick={() => setMobileMenu(false)}
-        />
-      )}
-
       {/* SIDEBAR */}
-      <aside className={`sidebar ${mobileMenu ? "show" : ""}`}>
+      <aside className={`sidebar ${sidebarOpen ? "show" : ""}`}>
         <div className="sideTop">
-          <button
-            className="iconBtn"
-            onClick={() => setMobileMenu(false)}
-          >
-            <ChevronLeft size={18} />
+          <button className="roundBtn" onClick={() => setSidebarOpen(false)}>
+            <X size={18} />
           </button>
 
           <button className="newBtn" onClick={newChat}>
             <PenSquare size={16} />
-            New Chat
+            <span>New Chat</span>
           </button>
         </div>
 
+        <div className="searchWrap">
+          <Search size={16} />
+          <input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search chats"
+          />
+        </div>
+
         <button
-          className="searchBox"
-          onClick={() => setSearchOpen(true)}
+          className={`navBtn ${tab === "chat" ? "active" : ""}`}
+          onClick={() => setTab("chat")}
         >
-          <Search size={17} />
-          Search
+          <MessageSquare size={18} />
+          <span>Chat</span>
         </button>
 
-        <Link href="/" className="navBtn active">
-          <MessageSquare size={18} />
-          Chat
-        </Link>
-
-        <Link href="/explore" className="navBtn">
+        <button
+          className={`navBtn ${tab === "explore" ? "active" : ""}`}
+          onClick={() => setTab("explore")}
+        >
           <Grid2X2 size={18} />
-          Explore
-        </Link>
+          <span>Explore</span>
+        </button>
 
-        <Link href="/library" className="navBtn">
+        <button
+          className={`navBtn ${tab === "library" ? "active" : ""}`}
+          onClick={() => setTab("library")}
+        >
           <Folder size={18} />
-          Library
-        </Link>
+          <span>Library</span>
+        </button>
 
-        <div className="historyTitle">Chat History</div>
+        <div className="sideLabel">Chat History</div>
 
-        <div className="historyList">
-          {chats.map((chat) => (
+        <div className="history">
+          {filteredChats.map((chat) => (
             <div
               key={chat.id}
               className={`historyItem ${
-                chat.id === activeId ? "activeRow" : ""
+                activeId === chat.id ? "historyActive" : ""
               }`}
+              onClick={() => {
+                setActiveId(chat.id);
+                setTab("chat");
+                setSidebarOpen(false);
+              }}
             >
-              <button
-                className="historyBtn"
-                onClick={() => {
-                  setActiveId(chat.id);
-                  setMobileMenu(false);
-                }}
-              >
-                {chat.title}
-              </button>
+              <span>{chat.title}</span>
 
               <button
                 className="miniBtn"
-                onClick={() => deleteChat(chat.id)}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  deleteChat(chat.id);
+                }}
               >
                 <Trash2 size={14} />
               </button>
@@ -256,161 +342,139 @@ export default function Home() {
 
       {/* MAIN */}
       <section className="main">
-        <header className="topBar">
+        {/* TOPBAR */}
+        <header className="topbar">
           <button
-            className="iconBtn"
-            onClick={() => setMobileMenu(true)}
+            className="roundBtn"
+            onClick={() => setSidebarOpen(!sidebarOpen)}
           >
-            <Menu size={19} />
+            <Menu size={18} />
           </button>
 
-          <div className="logo">Thinksy</div>
+          <div className="brand">Thinksy</div>
 
-          <button
-            className="iconBtn"
-            onClick={newChat}
-          >
+          <button className="roundBtn" onClick={newChat}>
             <PenSquare size={18} />
           </button>
         </header>
 
-        {/* CHAT */}
-        <div className="chatArea">
-          {activeChat?.messages.map((msg, i) => (
-            <div
-              key={i}
-              className={`bubble ${
-                msg.role === "user" ? "user" : "ai"
-              }`}
-            >
-              {msg.text}
+        {/* CHAT TAB */}
+        {tab === "chat" && (
+          <>
+            <div className="chatArea">
+              {activeChat?.messages.map((msg, i) => (
+                <div
+                  key={i}
+                  className={`bubble ${
+                    msg.role === "user" ? "userBubble" : "aiBubble"
+                  }`}
+                >
+                  {msg.text}
 
-              {msg.role === "assistant" && (
-                <div className="tools">
-                  <button
-                    onClick={() => copyText(msg.text)}
-                  >
-                    <Copy size={15} />
-                  </button>
+                  {msg.role === "assistant" && (
+                    <div className="tools">
+                      <button onClick={() => copyText(msg.text)}>
+                        <Copy size={14} />
+                      </button>
 
-                  <button
-                    onClick={() => speakText(msg.text)}
-                  >
-                    <Volume2 size={15} />
+                      <button onClick={() => speak(msg.text)}>
+                        <Volume2 size={14} />
+                      </button>
+
+                      <button>
+                        <ThumbsUp size={14} />
+                      </button>
+
+                      <button>
+                        <ThumbsDown size={14} />
+                      </button>
+
+                      <button onClick={regenerate}>
+                        <RotateCcw size={14} />
+                      </button>
+                    </div>
+                  )}
+                </div>
+              ))}
+
+              {typing && <div className="bubble aiBubble">Thinking...</div>}
+
+              <div ref={chatEndRef} />
+            </div>
+
+            <div className="inputWrap">
+              <div className="inputBox">
+                <input
+                  value={input}
+                  placeholder="Ask anything"
+                  onChange={(e) => setInput(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && sendMessage()}
+                />
+
+                <div className="inputTools">
+                  <button>
+                    <Paperclip size={16} />
                   </button>
 
                   <button>
-                    <ThumbsUp size={15} />
+                    <SlidersHorizontal size={16} />
                   </button>
 
-                  <button>
-                    <ThumbsDown size={15} />
+                  <button onClick={() => setVoiceOpen(true)}>
+                    <Mic size={16} />
                   </button>
 
-                  <button>
-                    <RotateCcw size={15} />
+                  <button className="sendBtn" onClick={sendMessage}>
+                    <ArrowUp size={16} />
                   </button>
                 </div>
-              )}
+              </div>
             </div>
-          ))}
+          </>
+        )}
 
-          {typing && (
-            <div className="bubble ai">
-              Thinking...
-            </div>
-          )}
-
-          <div ref={bottomRef} />
-        </div>
-
-        {/* INPUT */}
-        <div className="inputWrap">
-          <div className="inputBox">
-            <input
-              placeholder="Ask anything"
-              value={input}
-              onChange={(e) =>
-                setInput(e.target.value)
-              }
-              onKeyDown={(e) =>
-                e.key === "Enter" && sendMessage()
-              }
-            />
-
-            <div className="inputTools">
-              <button>
-                <Paperclip size={17} />
-              </button>
-
-              <button>
-                <SlidersHorizontal size={17} />
-              </button>
-
-              <button
-                onClick={() => setVoiceOpen(true)}
-              >
-                <Mic size={17} />
-              </button>
-
-              <button
-                className="sendBtn"
-                onClick={sendMessage}
-              >
-                <ArrowUp size={17} />
-              </button>
-            </div>
+        {/* EXPLORE */}
+        {tab === "explore" && (
+          <div className="pageBox">
+            <h2>Explore</h2>
+            <p>Images, tools and prompts can appear here later.</p>
           </div>
-        </div>
+        )}
+
+        {/* LIBRARY */}
+        {tab === "library" && (
+          <div className="pageBox">
+            <h2>Library</h2>
+
+            {chats.length === 0 ? (
+              <p>No chats yet.</p>
+            ) : (
+              chats.map((c) => (
+                <div key={c.id} className="libItem">
+                  {c.title}
+                </div>
+              ))
+            )}
+          </div>
+        )}
       </section>
 
-      {/* SEARCH */}
-      {searchOpen && (
-        <div
-          className="popupWrap"
-          onClick={() => setSearchOpen(false)}
-        >
-          <div
-            className="popup"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="popupTitle">
-              Search Chats
-            </div>
-
-            <input
-              className="popupInput"
-              placeholder="Type to search..."
-            />
-          </div>
-        </div>
-      )}
-
-      {/* VOICE */}
+      {/* VOICE PANEL */}
       {voiceOpen && (
-        <div
-          className="popupWrap"
-          onClick={() => setVoiceOpen(false)}
-        >
+        <div className="voiceWrap" onClick={() => setVoiceOpen(false)}>
           <div
             className="voicePanel"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="voiceTop">
-              <button className="iconBtn">
-                <Mic size={16} />
-              </button>
-
-              <button
-                className="iconBtn"
-                onClick={() => setVoiceOpen(false)}
-              >
-                <X size={16} />
-              </button>
-            </div>
-
+            <div className="voiceTitle">Voice Assistant</div>
             <div className="orb" />
-            <p>Voice Ready</p>
+
+            <button
+              className="closeVoice"
+              onClick={() => setVoiceOpen(false)}
+            >
+              Close
+            </button>
           </div>
         </div>
       )}
@@ -434,13 +498,6 @@ export default function Home() {
           overflow: hidden;
         }
 
-        .overlay {
-          position: fixed;
-          inset: 0;
-          background: rgba(0,0,0,.6);
-          z-index: 20;
-        }
-
         .sidebar {
           width: 280px;
           background: #0b0b0b;
@@ -449,10 +506,92 @@ export default function Home() {
           overflow-y: auto;
         }
 
-        .sideTop {
+        .sideTop,
+        .navBtn,
+        .historyItem,
+        .topbar,
+        .tools,
+        .inputTools {
           display: flex;
+          align-items: center;
+        }
+
+        .sideTop {
           gap: 10px;
           margin-bottom: 14px;
+        }
+
+        .roundBtn,
+        .miniBtn,
+        .tools button,
+        .inputTools button {
+          width: 38px;
+          height: 38px;
+          border: none;
+          border-radius: 50%;
+          background: #151515;
+          color: #fff;
+        }
+
+        .newBtn {
+          flex: 1;
+          height: 38px;
+          border: none;
+          border-radius: 14px;
+          background: #151515;
+          color: #fff;
+        }
+
+        .searchWrap {
+          display: flex;
+          gap: 8px;
+          background: #121212;
+          padding: 10px 12px;
+          border-radius: 14px;
+          margin-bottom: 12px;
+        }
+
+        .searchWrap input,
+        .inputBox input {
+          flex: 1;
+          background: transparent;
+          border: none;
+          color: #fff;
+          outline: none;
+        }
+
+        .navBtn {
+          gap: 10px;
+          width: 100%;
+          height: 44px;
+          border: none;
+          background: transparent;
+          color: #ddd;
+          border-radius: 12px;
+          padding: 0 12px;
+          margin-bottom: 8px;
+        }
+
+        .active {
+          background: #171717;
+        }
+
+        .sideLabel {
+          color: #777;
+          margin: 16px 0 10px;
+          font-size: 13px;
+        }
+
+        .historyItem {
+          justify-content: space-between;
+          background: #101010;
+          padding: 10px;
+          border-radius: 12px;
+          margin-bottom: 8px;
+        }
+
+        .historyActive {
+          border: 1px solid #2a2a2a;
         }
 
         .main {
@@ -461,84 +600,21 @@ export default function Home() {
           flex-direction: column;
         }
 
-        .topBar {
-          height: 64px;
-          border-bottom: 1px solid #141414;
-          display: flex;
-          align-items: center;
+        .topbar {
           justify-content: space-between;
-          padding: 0 14px;
-        }
-
-        .logo {
-          font-size: 22px;
-          font-weight: 700;
-        }
-
-        .iconBtn,
-        .miniBtn,
-        .tools button,
-        .inputTools button {
-          width: 40px;
-          height: 40px;
-          border: none;
-          border-radius: 50%;
-          background: #111;
-          color: #fff;
-        }
-
-        .miniBtn {
-          width: 30px;
-          height: 30px;
-        }
-
-        .newBtn,
-        .searchBox,
-        .navBtn,
-        .historyBtn {
-          width: 100%;
-          border: none;
-          color: #fff;
-          background: #111;
-          border-radius: 14px;
           padding: 12px;
-          display: flex;
-          align-items: center;
-          gap: 10px;
-          margin-bottom: 10px;
-          text-decoration: none;
+          border-bottom: 1px solid #141414;
         }
 
-        .navBtn.active,
-        .navBtn:hover {
-          background: #1a1a1a;
-        }
-
-        .historyTitle {
-          color: #777;
-          margin: 16px 0 10px;
-          font-size: 13px;
-        }
-
-        .historyItem {
-          display: flex;
-          gap: 8px;
-          margin-bottom: 8px;
-        }
-
-        .historyBtn {
-          margin: 0;
-          justify-content: flex-start;
-        }
-
-        .activeRow .historyBtn {
-          background: #1a1a1a;
+        .brand {
+          font-size: 20px;
+          font-weight: 700;
         }
 
         .chatArea {
           flex: 1;
           overflow-y: auto;
-          padding: 20px;
+          padding: 18px;
         }
 
         .bubble {
@@ -546,50 +622,38 @@ export default function Home() {
           padding: 16px;
           border-radius: 18px;
           margin-bottom: 14px;
-          line-height: 1.5;
         }
 
-        .bubble.ai {
+        .aiBubble {
           background: #101010;
-          border: 1px solid #181818;
+          border: 1px solid #1a1a1a;
         }
 
-        .bubble.user {
-          background: #1b1b1b;
+        .userBubble {
+          background: #1a1a1a;
           margin-left: auto;
         }
 
         .tools {
-          display: flex;
           gap: 8px;
           margin-top: 12px;
         }
 
         .inputWrap {
-          padding: 16px;
+          padding: 14px;
         }
 
         .inputBox {
           background: #101010;
           border: 1px solid #1a1a1a;
           border-radius: 24px;
-          padding: 14px;
-        }
-
-        .inputBox input {
-          width: 100%;
-          border: none;
-          outline: none;
-          background: transparent;
-          color: #fff;
-          font-size: 16px;
-          margin-bottom: 12px;
+          padding: 12px;
         }
 
         .inputTools {
-          display: flex;
-          gap: 10px;
           justify-content: flex-end;
+          gap: 8px;
+          margin-top: 10px;
         }
 
         .sendBtn {
@@ -597,56 +661,54 @@ export default function Home() {
           color: #000 !important;
         }
 
-        .popupWrap {
+        .pageBox {
+          padding: 24px;
+        }
+
+        .libItem {
+          padding: 12px;
+          background: #111;
+          border-radius: 12px;
+          margin-top: 10px;
+        }
+
+        .voiceWrap {
           position: fixed;
           inset: 0;
-          background: rgba(0,0,0,.65);
+          background: rgba(0, 0, 0, 0.65);
           display: grid;
           place-items: center;
-          z-index: 50;
         }
 
-        .popup,
         .voicePanel {
-          width: min(92vw, 360px);
+          width: 320px;
           background: #090909;
-          border: 1px solid #1b1b1b;
+          border: 1px solid #1a1a1a;
           border-radius: 24px;
-          padding: 18px;
+          padding: 20px;
+          text-align: center;
         }
 
-        .popupTitle {
-          margin-bottom: 14px;
-          font-size: 18px;
+        .voiceTitle {
+          margin-bottom: 20px;
           font-weight: 700;
         }
 
-        .popupInput {
-          width: 100%;
-          height: 46px;
-          border-radius: 14px;
-          border: none;
-          background: #111;
-          color: #fff;
-          padding: 0 14px;
-        }
-
-        .voiceTop {
-          display: flex;
-          justify-content: space-between;
-        }
-
         .orb {
-          width: 150px;
-          height: 150px;
+          width: 140px;
+          height: 140px;
           border-radius: 50%;
-          margin: 40px auto 18px;
+          margin: 0 auto 20px;
           background: radial-gradient(circle, #fff, #333);
         }
 
-        .voicePanel p {
-          text-align: center;
-          color: #aaa;
+        .closeVoice {
+          width: 100%;
+          height: 42px;
+          border: none;
+          border-radius: 12px;
+          background: #fff;
+          color: #000;
         }
 
         @media (max-width: 900px) {
@@ -655,8 +717,8 @@ export default function Home() {
             left: -300px;
             top: 0;
             bottom: 0;
-            z-index: 30;
-            transition: 0.25s;
+            z-index: 100;
+            transition: 0.2s;
           }
 
           .sidebar.show {
@@ -665,6 +727,10 @@ export default function Home() {
 
           .bubble {
             max-width: 100%;
+          }
+
+          .brand {
+            font-size: 18px;
           }
         }
       `}</style>
