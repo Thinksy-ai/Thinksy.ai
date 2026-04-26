@@ -1,8 +1,10 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useState, useEffect, useRef } from "react";
+import Link from "next/link";
 import {
   Menu,
+  X,
   Search,
   MessageSquare,
   Grid2X2,
@@ -17,12 +19,8 @@ import {
   ThumbsUp,
   ThumbsDown,
   RotateCcw,
-  Video,
-  MoreHorizontal,
-  X,
   Trash2,
-  History,
-  Square,
+  ChevronLeft,
 } from "lucide-react";
 
 type Role = "user" | "assistant";
@@ -32,261 +30,213 @@ type Msg = {
   text: string;
 };
 
-type ChatItem = {
+type Chat = {
   id: number;
   title: string;
   messages: Msg[];
 };
 
-type Tab = "chat" | "explore" | "library";
-
 export default function Home() {
-  const [input, setInput] = useState("");
   const [mobileMenu, setMobileMenu] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
   const [voiceOpen, setVoiceOpen] = useState(false);
   const [typing, setTyping] = useState(false);
-  const [listening, setListening] = useState(false);
-  const [tab, setTab] = useState<Tab>("chat");
+  const [input, setInput] = useState("");
 
-  const [chats, setChats] = useState<ChatItem[]>([
-    {
-      id: Date.now(),
-      title: "New Chat",
-      messages: [
-        {
-          role: "assistant",
-          text: "Welcome to Thinksy. Ask anything.",
-        },
-      ],
-    },
-  ]);
+  const [chats, setChats] = useState<Chat[]>([]);
+  const [activeId, setActiveId] = useState<number>(1);
 
-  const [activeChatId, setActiveChatId] = useState<number>(chats[0].id);
-
-  const chatEndRef = useRef<HTMLDivElement | null>(null);
-  const recognitionRef = useRef<any>(null);
-
-  const activeChat =
-    chats.find((chat) => chat.id === activeChatId) || chats[0];
-
-  const messages = activeChat.messages;
+  const bottomRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages, typing]);
+    const saved = localStorage.getItem("thinksy_chats");
 
-  function updateChatMessages(newMessages: Msg[]) {
-    setChats((prev) =>
-      prev.map((chat) =>
-        chat.id === activeChatId
-          ? {
-              ...chat,
-              messages: newMessages,
-              title:
-                chat.title === "New Chat" && newMessages[1]
-                  ? newMessages[1].text.slice(0, 24)
-                  : chat.title,
-            }
-          : chat
-      )
-    );
-  }
-
-  async function sendMessage() {
-    const text = input.trim();
-    if (!text || typing) return;
-
-    const updated: Msg[] = [...messages, { role: "user", text }];
-    updateChatMessages(updated);
-
-    setInput("");
-    setTyping(true);
-    setTab("chat");
-
-    setTimeout(() => {
-      const aiReply =
-        "This is your upgraded Thinksy response. Connect Groq for real streaming AI.";
-
-      updateChatMessages([
-        ...updated,
+    if (saved) {
+      const parsed = JSON.parse(saved);
+      setChats(parsed);
+      setActiveId(parsed[0]?.id || 1);
+    } else {
+      const first = [
         {
-          role: "assistant",
-          text: aiReply,
+          id: 1,
+          title: "New Chat",
+          messages: [
+            {
+              role: "assistant",
+              text: "Welcome to Thinksy. Ask anything.",
+            },
+          ],
         },
-      ]);
+      ];
 
-      setTyping(false);
-    }, 1000);
-  }
+      setChats(first);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (chats.length > 0) {
+      localStorage.setItem("thinksy_chats", JSON.stringify(chats));
+    }
+  }, [chats]);
+
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [chats, typing]);
+
+  const activeChat =
+    chats.find((chat) => chat.id === activeId) || chats[0];
 
   function newChat() {
     const id = Date.now();
 
-    const fresh = {
+    const chat: Chat = {
       id,
-      title: "New Chat",
+      title: "Fresh Chat",
       messages: [
         {
-          role: "assistant" as Role,
-          text: "Fresh chat started. Ask anything.",
+          role: "assistant",
+          text: "New chat ready.",
         },
       ],
     };
 
-    setChats((prev) => [fresh, ...prev]);
-    setActiveChatId(id);
-    setTab("chat");
+    setChats((prev) => [chat, ...prev]);
+    setActiveId(id);
     setMobileMenu(false);
   }
 
   function deleteChat(id: number) {
     const filtered = chats.filter((c) => c.id !== id);
 
-    if (!filtered.length) {
+    if (filtered.length === 0) {
       newChat();
       return;
     }
 
     setChats(filtered);
-
-    if (activeChatId === id) {
-      setActiveChatId(filtered[0].id);
-    }
+    setActiveId(filtered[0].id);
   }
 
   function copyText(text: string) {
     navigator.clipboard.writeText(text);
   }
 
-  function speak(text: string) {
-    if (!("speechSynthesis" in window)) return;
-
-    speechSynthesis.cancel();
-
+  function speakText(text: string) {
     const utter = new SpeechSynthesisUtterance(text);
-    utter.rate = 1;
-    utter.pitch = 1;
     speechSynthesis.speak(utter);
   }
 
-  function stopSpeak() {
-    if ("speechSynthesis" in window) {
-      speechSynthesis.cancel();
-    }
-  }
+  async function sendMessage() {
+    const text = input.trim();
+    if (!text) return;
 
-  function startVoice() {
-    const SpeechRecognition =
-      (window as any).SpeechRecognition ||
-      (window as any).webkitSpeechRecognition;
+    const updated = chats.map((chat) =>
+      chat.id === activeId
+        ? {
+            ...chat,
+            title:
+              chat.title === "New Chat" ||
+              chat.title === "Fresh Chat"
+                ? text.slice(0, 25)
+                : chat.title,
+            messages: [
+              ...chat.messages,
+              { role: "user", text },
+            ],
+          }
+        : chat
+    );
 
-    if (!SpeechRecognition) {
-      alert("Voice recognition not supported on this browser.");
-      return;
-    }
+    setChats(updated);
+    setInput("");
+    setTyping(true);
 
-    const recognition = new SpeechRecognition();
-    recognition.lang = "en-US";
-    recognition.interimResults = true;
-    recognition.continuous = false;
+    setTimeout(() => {
+      const reply = `Thinksy response: ${text}`;
 
-    recognition.onstart = () => setListening(true);
+      setChats((prev) =>
+        prev.map((chat) =>
+          chat.id === activeId
+            ? {
+                ...chat,
+                messages: [
+                  ...chat.messages,
+                  {
+                    role: "assistant",
+                    text: reply,
+                  },
+                ],
+              }
+            : chat
+        )
+      );
 
-    recognition.onresult = (event: any) => {
-      let transcript = "";
-
-      for (let i = 0; i < event.results.length; i++) {
-        transcript += event.results[i][0].transcript;
-      }
-
-      setInput(transcript);
-    };
-
-    recognition.onend = () => setListening(false);
-
-    recognition.onerror = () => setListening(false);
-
-    recognition.start();
-    recognitionRef.current = recognition;
-  }
-
-  function stopVoice() {
-    recognitionRef.current?.stop?.();
-    setListening(false);
+      setTyping(false);
+    }, 1200);
   }
 
   return (
-    <main className="thinksy-app">
+    <main className="app">
+      {mobileMenu && (
+        <div
+          className="overlay"
+          onClick={() => setMobileMenu(false)}
+        />
+      )}
+
       {/* SIDEBAR */}
       <aside className={`sidebar ${mobileMenu ? "show" : ""}`}>
         <div className="sideTop">
-          <div className="brand">Thinksy</div>
-
           <button
-            className="closeBtn"
+            className="iconBtn"
             onClick={() => setMobileMenu(false)}
           >
-            <X size={18} />
+            <ChevronLeft size={18} />
+          </button>
+
+          <button className="newBtn" onClick={newChat}>
+            <PenSquare size={16} />
+            New Chat
           </button>
         </div>
 
-        <button className="searchBox">
-          <Search size={18} />
-          <span>Search</span>
+        <button
+          className="searchBox"
+          onClick={() => setSearchOpen(true)}
+        >
+          <Search size={17} />
+          Search
         </button>
 
-        <button
-          className={`navBtn ${tab === "chat" ? "active" : ""}`}
-          onClick={() => {
-            setTab("chat");
-            setMobileMenu(false);
-          }}
-        >
+        <Link href="/" className="navBtn active">
           <MessageSquare size={18} />
-          <span>Chat</span>
-        </button>
+          Chat
+        </Link>
 
-        <button
-          className={`navBtn ${tab === "explore" ? "active" : ""}`}
-          onClick={() => {
-            setTab("explore");
-            setMobileMenu(false);
-          }}
-        >
+        <Link href="/explore" className="navBtn">
           <Grid2X2 size={18} />
-          <span>Explore</span>
-        </button>
+          Explore
+        </Link>
 
-        <button
-          className={`navBtn ${tab === "library" ? "active" : ""}`}
-          onClick={() => {
-            setTab("library");
-            setMobileMenu(false);
-          }}
-        >
+        <Link href="/library" className="navBtn">
           <Folder size={18} />
-          <span>Library</span>
-        </button>
+          Library
+        </Link>
 
-        {/* HISTORY */}
-        <div className="historyHead">
-          <History size={16} />
-          <span>Chat History</span>
-        </div>
+        <div className="historyTitle">Chat History</div>
 
         <div className="historyList">
           {chats.map((chat) => (
             <div
               key={chat.id}
               className={`historyItem ${
-                activeChatId === chat.id ? "selected" : ""
+                chat.id === activeId ? "activeRow" : ""
               }`}
             >
               <button
                 className="historyBtn"
                 onClick={() => {
-                  setActiveChatId(chat.id);
-                  setTab("chat");
+                  setActiveId(chat.id);
                   setMobileMenu(false);
                 }}
               >
@@ -294,7 +244,7 @@ export default function Home() {
               </button>
 
               <button
-                className="trashBtn"
+                className="miniBtn"
                 onClick={() => deleteChat(chat.id)}
               >
                 <Trash2 size={14} />
@@ -302,165 +252,166 @@ export default function Home() {
             </div>
           ))}
         </div>
-
-        <div className="bottomSide">
-          <button className="navBtn" onClick={newChat}>
-            <PenSquare size={18} />
-            <span>New Chat</span>
-          </button>
-        </div>
       </aside>
 
       {/* MAIN */}
-      <section className="mainPanel">
+      <section className="main">
         <header className="topBar">
           <button
             className="iconBtn"
             onClick={() => setMobileMenu(true)}
           >
-            <Menu size={20} />
+            <Menu size={19} />
           </button>
 
-          <div className="title">Thinksy</div>
+          <div className="logo">Thinksy</div>
 
-          <button className="iconBtn" onClick={newChat}>
+          <button
+            className="iconBtn"
+            onClick={newChat}
+          >
             <PenSquare size={18} />
           </button>
         </header>
 
         {/* CHAT */}
-        {tab === "chat" && (
-          <>
-            <div className="chatArea">
-              {messages.map((msg, i) => (
-                <div
-                  key={i}
-                  className={`bubble ${
-                    msg.role === "user" ? "user" : "ai"
-                  }`}
-                >
-                  {msg.text}
+        <div className="chatArea">
+          {activeChat?.messages.map((msg, i) => (
+            <div
+              key={i}
+              className={`bubble ${
+                msg.role === "user" ? "user" : "ai"
+              }`}
+            >
+              {msg.text}
 
-                  {msg.role === "assistant" && (
-                    <div className="tools">
-                      <button onClick={() => copyText(msg.text)}>
-                        <Copy size={15} />
-                      </button>
-
-                      <button onClick={() => speak(msg.text)}>
-                        <Volume2 size={15} />
-                      </button>
-
-                      <button>
-                        <ThumbsUp size={15} />
-                      </button>
-
-                      <button>
-                        <ThumbsDown size={15} />
-                      </button>
-
-                      <button onClick={newChat}>
-                        <RotateCcw size={15} />
-                      </button>
-                    </div>
-                  )}
-                </div>
-              ))}
-
-              {typing && (
-                <div className="bubble ai">Thinking...</div>
-              )}
-
-              <div ref={chatEndRef} />
-            </div>
-
-            <div className="inputWrap">
-              <div className="inputBox">
-                <input
-                  placeholder="Ask anything"
-                  value={input}
-                  onChange={(e) => setInput(e.target.value)}
-                  onKeyDown={(e) =>
-                    e.key === "Enter" && sendMessage()
-                  }
-                />
-
-                <div className="inputTools">
-                  <button>
-                    <Paperclip size={18} />
-                  </button>
-
-                  <button>
-                    <SlidersHorizontal size={18} />
-                  </button>
-
-                  <button onClick={() => setVoiceOpen(true)}>
-                    <Mic size={18} />
+              {msg.role === "assistant" && (
+                <div className="tools">
+                  <button
+                    onClick={() => copyText(msg.text)}
+                  >
+                    <Copy size={15} />
                   </button>
 
                   <button
-                    className="sendBtn"
-                    onClick={sendMessage}
+                    onClick={() => speakText(msg.text)}
                   >
-                    <ArrowUp size={18} />
+                    <Volume2 size={15} />
+                  </button>
+
+                  <button>
+                    <ThumbsUp size={15} />
+                  </button>
+
+                  <button>
+                    <ThumbsDown size={15} />
+                  </button>
+
+                  <button>
+                    <RotateCcw size={15} />
                   </button>
                 </div>
-              </div>
+              )}
             </div>
-          </>
-        )}
+          ))}
 
-        {/* EXPLORE */}
-        {tab === "explore" && (
-          <div className="pageBox">Explore page ready</div>
-        )}
+          {typing && (
+            <div className="bubble ai">
+              Thinking...
+            </div>
+          )}
 
-        {/* LIBRARY */}
-        {tab === "library" && (
-          <div className="pageBox">Library page ready</div>
-        )}
+          <div ref={bottomRef} />
+        </div>
+
+        {/* INPUT */}
+        <div className="inputWrap">
+          <div className="inputBox">
+            <input
+              placeholder="Ask anything"
+              value={input}
+              onChange={(e) =>
+                setInput(e.target.value)
+              }
+              onKeyDown={(e) =>
+                e.key === "Enter" && sendMessage()
+              }
+            />
+
+            <div className="inputTools">
+              <button>
+                <Paperclip size={17} />
+              </button>
+
+              <button>
+                <SlidersHorizontal size={17} />
+              </button>
+
+              <button
+                onClick={() => setVoiceOpen(true)}
+              >
+                <Mic size={17} />
+              </button>
+
+              <button
+                className="sendBtn"
+                onClick={sendMessage}
+              >
+                <ArrowUp size={17} />
+              </button>
+            </div>
+          </div>
+        </div>
       </section>
 
-      {/* VOICE PANEL */}
-      {voiceOpen && (
-        <div className="voicePanel">
-          <div className="voiceTop">
-            <button>
-              <Video size={18} />
-            </button>
-
-            <button
-              onClick={listening ? stopVoice : startVoice}
-            >
-              <Mic size={18} />
-            </button>
-
-            <button onClick={stopSpeak}>
-              <Square size={18} />
-            </button>
-
-            <button onClick={() => setVoiceOpen(false)}>
-              <X size={18} />
-            </button>
-          </div>
-
-          <div className={`orb ${listening ? "live" : ""}`} />
-
-          <p className="voiceText">
-            {listening
-              ? "Listening..."
-              : "Tap mic to speak"}
-          </p>
-
-          <button
-            className="voiceSend"
-            onClick={() => {
-              setVoiceOpen(false);
-              sendMessage();
-            }}
+      {/* SEARCH */}
+      {searchOpen && (
+        <div
+          className="popupWrap"
+          onClick={() => setSearchOpen(false)}
+        >
+          <div
+            className="popup"
+            onClick={(e) => e.stopPropagation()}
           >
-            Send Voice Message
-          </button>
+            <div className="popupTitle">
+              Search Chats
+            </div>
+
+            <input
+              className="popupInput"
+              placeholder="Type to search..."
+            />
+          </div>
+        </div>
+      )}
+
+      {/* VOICE */}
+      {voiceOpen && (
+        <div
+          className="popupWrap"
+          onClick={() => setVoiceOpen(false)}
+        >
+          <div
+            className="voicePanel"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="voiceTop">
+              <button className="iconBtn">
+                <Mic size={16} />
+              </button>
+
+              <button
+                className="iconBtn"
+                onClick={() => setVoiceOpen(false)}
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            <div className="orb" />
+            <p>Voice Ready</p>
+          </div>
         </div>
       )}
 
@@ -471,118 +422,40 @@ export default function Home() {
           box-sizing: border-box;
         }
 
-        html,
         body {
           background: #000;
           color: #fff;
           font-family: Inter, sans-serif;
+        }
+
+        .app {
+          display: flex;
+          height: 100vh;
           overflow: hidden;
         }
 
-        .thinksy-app {
-          display: flex;
-          height: 100vh;
+        .overlay {
+          position: fixed;
+          inset: 0;
+          background: rgba(0,0,0,.6);
+          z-index: 20;
         }
 
         .sidebar {
-          width: 270px;
-          background: #0a0a0a;
-          border-right: 1px solid #151515;
+          width: 280px;
+          background: #0b0b0b;
+          border-right: 1px solid #181818;
           padding: 14px;
-          display: flex;
-          flex-direction: column;
+          overflow-y: auto;
         }
 
         .sideTop {
           display: flex;
-          justify-content: space-between;
-          align-items: center;
+          gap: 10px;
           margin-bottom: 14px;
         }
 
-        .brand {
-          font-size: 22px;
-          font-weight: 700;
-        }
-
-        .closeBtn,
-        .iconBtn,
-        .tools button,
-        .inputTools button,
-        .voiceTop button,
-        .trashBtn {
-          width: 38px;
-          height: 38px;
-          border: none;
-          border-radius: 50%;
-          background: #121212;
-          color: #fff;
-        }
-
-        .searchBox,
-        .navBtn,
-        .historyBtn {
-          width: 100%;
-          border: none;
-          background: transparent;
-          color: #ddd;
-          display: flex;
-          align-items: center;
-          gap: 12px;
-          padding: 0 14px;
-          height: 46px;
-          border-radius: 14px;
-        }
-
-        .searchBox {
-          background: #151515;
-          color: #888;
-          margin-bottom: 8px;
-        }
-
-        .navBtn:hover,
-        .navBtn.active,
-        .historyBtn:hover {
-          background: #171717;
-        }
-
-        .historyHead {
-          display: flex;
-          gap: 8px;
-          align-items: center;
-          color: #888;
-          font-size: 13px;
-          margin: 14px 8px 8px;
-        }
-
-        .historyList {
-          flex: 1;
-          overflow-y: auto;
-        }
-
-        .historyItem {
-          display: flex;
-          gap: 6px;
-          margin-bottom: 6px;
-        }
-
-        .historyBtn {
-          flex: 1;
-          justify-content: flex-start;
-          overflow: hidden;
-          text-overflow: ellipsis;
-          white-space: nowrap;
-        }
-
-        .selected .historyBtn {
-          background: #171717;
-        }
-
-        .bottomSide {
-          margin-top: auto;
-        }
-
-        .mainPanel {
+        .main {
           flex: 1;
           display: flex;
           flex-direction: column;
@@ -590,16 +463,76 @@ export default function Home() {
 
         .topBar {
           height: 64px;
-          border-bottom: 1px solid #151515;
+          border-bottom: 1px solid #141414;
           display: flex;
-          justify-content: space-between;
           align-items: center;
+          justify-content: space-between;
           padding: 0 14px;
         }
 
-        .title {
-          font-size: 20px;
+        .logo {
+          font-size: 22px;
           font-weight: 700;
+        }
+
+        .iconBtn,
+        .miniBtn,
+        .tools button,
+        .inputTools button {
+          width: 40px;
+          height: 40px;
+          border: none;
+          border-radius: 50%;
+          background: #111;
+          color: #fff;
+        }
+
+        .miniBtn {
+          width: 30px;
+          height: 30px;
+        }
+
+        .newBtn,
+        .searchBox,
+        .navBtn,
+        .historyBtn {
+          width: 100%;
+          border: none;
+          color: #fff;
+          background: #111;
+          border-radius: 14px;
+          padding: 12px;
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          margin-bottom: 10px;
+          text-decoration: none;
+        }
+
+        .navBtn.active,
+        .navBtn:hover {
+          background: #1a1a1a;
+        }
+
+        .historyTitle {
+          color: #777;
+          margin: 16px 0 10px;
+          font-size: 13px;
+        }
+
+        .historyItem {
+          display: flex;
+          gap: 8px;
+          margin-bottom: 8px;
+        }
+
+        .historyBtn {
+          margin: 0;
+          justify-content: flex-start;
+        }
+
+        .activeRow .historyBtn {
+          background: #1a1a1a;
         }
 
         .chatArea {
@@ -618,11 +551,11 @@ export default function Home() {
 
         .bubble.ai {
           background: #101010;
-          border: 1px solid #1a1a1a;
+          border: 1px solid #181818;
         }
 
         .bubble.user {
-          background: #1a1a1a;
+          background: #1b1b1b;
           margin-left: auto;
         }
 
@@ -645,9 +578,9 @@ export default function Home() {
 
         .inputBox input {
           width: 100%;
-          background: transparent;
           border: none;
           outline: none;
+          background: transparent;
           color: #fff;
           font-size: 16px;
           margin-bottom: 12px;
@@ -664,19 +597,38 @@ export default function Home() {
           color: #000 !important;
         }
 
-        .pageBox {
-          padding: 20px;
+        .popupWrap {
+          position: fixed;
+          inset: 0;
+          background: rgba(0,0,0,.65);
+          display: grid;
+          place-items: center;
+          z-index: 50;
         }
 
+        .popup,
         .voicePanel {
-          position: fixed;
-          right: 20px;
-          top: 90px;
-          width: 310px;
+          width: min(92vw, 360px);
           background: #090909;
-          border: 1px solid #1a1a1a;
-          border-radius: 28px;
+          border: 1px solid #1b1b1b;
+          border-radius: 24px;
           padding: 18px;
+        }
+
+        .popupTitle {
+          margin-bottom: 14px;
+          font-size: 18px;
+          font-weight: 700;
+        }
+
+        .popupInput {
+          width: 100%;
+          height: 46px;
+          border-radius: 14px;
+          border: none;
+          background: #111;
+          color: #fff;
+          padding: 0 14px;
         }
 
         .voiceTop {
@@ -692,48 +644,18 @@ export default function Home() {
           background: radial-gradient(circle, #fff, #333);
         }
 
-        .orb.live {
-          animation: pulse 1s infinite;
-        }
-
-        .voiceText {
+        .voicePanel p {
           text-align: center;
           color: #aaa;
-          margin-bottom: 16px;
-        }
-
-        .voiceSend {
-          width: 100%;
-          height: 46px;
-          border: none;
-          border-radius: 16px;
-          background: #fff;
-          color: #000;
-          font-weight: 700;
-        }
-
-        @keyframes pulse {
-          0% {
-            transform: scale(1);
-            opacity: 1;
-          }
-          50% {
-            transform: scale(1.08);
-            opacity: 0.7;
-          }
-          100% {
-            transform: scale(1);
-            opacity: 1;
-          }
         }
 
         @media (max-width: 900px) {
           .sidebar {
             position: fixed;
-            left: -280px;
+            left: -300px;
             top: 0;
             bottom: 0;
-            z-index: 100;
+            z-index: 30;
             transition: 0.25s;
           }
 
@@ -743,12 +665,6 @@ export default function Home() {
 
           .bubble {
             max-width: 100%;
-          }
-
-          .voicePanel {
-            left: 10px;
-            right: 10px;
-            width: auto;
           }
         }
       `}</style>
