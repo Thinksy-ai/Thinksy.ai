@@ -48,6 +48,56 @@ padding:12px 20px;
 border-radius:14px;
 color:#fff;
 cursor:pointer;
+transition: all 0.3s ease;
+font-weight:500;
+font-size:15px;
+}
+
+.heroBtns a:hover,
+button:hover{
+background:#1a1a1a;
+border-color:#333;
+transform: translateY(-2px);
+box-shadow: 0 4px 12px rgba(255,255,255,0.1);
+}
+
+.heroBtns a:active,
+button:active{
+transform: translateY(0);
+}
+
+.btn{
+background:#111;
+border:1px solid #222;
+padding:12px 20px;
+border-radius:14px;
+color:#fff;
+cursor:pointer;
+transition: all 0.3s ease;
+font-weight:500;
+font-size:15px;
+}
+
+.btn:hover{
+background:#1a1a1a;
+border-color:#333;
+transform: translateY(-2px);
+box-shadow: 0 4px 12px rgba(255,255,255,0.1);
+}
+
+.btn:active{
+transform: translateY(0);
+}
+
+.btn-primary{
+background:#0066ff;
+border-color:#0052cc;
+}
+
+.btn-primary:hover{
+background:#0052cc;
+border-color:#003d99;
+box-shadow: 0 4px 12px rgba(0,102,255,0.3);
 }
 
 .authPage{
