@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   Menu,
   Search,
@@ -20,9 +20,9 @@ import {
   Video,
   MoreHorizontal,
   X,
-  Sparkles,
-  Clock3,
-  BookOpen,
+  Trash2,
+  History,
+  Square,
 } from "lucide-react";
 
 type Role = "user" | "assistant";
@@ -32,6 +32,12 @@ type Msg = {
   text: string;
 };
 
+type ChatItem = {
+  id: number;
+  title: string;
+  messages: Msg[];
+};
+
 type Tab = "chat" | "explore" | "library";
 
 export default function Home() {
@@ -39,56 +45,113 @@ export default function Home() {
   const [mobileMenu, setMobileMenu] = useState(false);
   const [voiceOpen, setVoiceOpen] = useState(false);
   const [typing, setTyping] = useState(false);
+  const [listening, setListening] = useState(false);
   const [tab, setTab] = useState<Tab>("chat");
 
-  const chatEndRef = useRef<HTMLDivElement | null>(null);
-
-  const [messages, setMessages] = useState<Msg[]>([
+  const [chats, setChats] = useState<ChatItem[]>([
     {
-      role: "assistant",
-      text: "Welcome to Thinksy. Ask anything.",
+      id: Date.now(),
+      title: "New Chat",
+      messages: [
+        {
+          role: "assistant",
+          text: "Welcome to Thinksy. Ask anything.",
+        },
+      ],
     },
   ]);
+
+  const [activeChatId, setActiveChatId] = useState<number>(chats[0].id);
+
+  const chatEndRef = useRef<HTMLDivElement | null>(null);
+  const recognitionRef = useRef<any>(null);
+
+  const activeChat =
+    chats.find((chat) => chat.id === activeChatId) || chats[0];
+
+  const messages = activeChat.messages;
 
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, typing]);
 
+  function updateChatMessages(newMessages: Msg[]) {
+    setChats((prev) =>
+      prev.map((chat) =>
+        chat.id === activeChatId
+          ? {
+              ...chat,
+              messages: newMessages,
+              title:
+                chat.title === "New Chat" && newMessages[1]
+                  ? newMessages[1].text.slice(0, 24)
+                  : chat.title,
+            }
+          : chat
+      )
+    );
+  }
+
   async function sendMessage() {
     const text = input.trim();
-
     if (!text || typing) return;
 
     const updated: Msg[] = [...messages, { role: "user", text }];
+    updateChatMessages(updated);
 
-    setMessages(updated);
     setInput("");
     setTyping(true);
     setTab("chat");
 
     setTimeout(() => {
-      setTyping(false);
+      const aiReply =
+        "This is your upgraded Thinksy response. Connect Groq for real streaming AI.";
 
-      setMessages((prev) => [
-        ...prev,
+      updateChatMessages([
+        ...updated,
         {
           role: "assistant",
-          text:
-            "This is your upgraded Thinksy demo response. Connect Groq API for real intelligence and streaming replies.",
+          text: aiReply,
         },
       ]);
-    }, 900);
+
+      setTyping(false);
+    }, 1000);
   }
 
   function newChat() {
-    setMessages([
-      {
-        role: "assistant",
-        text: "Fresh chat started. Ask anything.",
-      },
-    ]);
+    const id = Date.now();
+
+    const fresh = {
+      id,
+      title: "New Chat",
+      messages: [
+        {
+          role: "assistant" as Role,
+          text: "Fresh chat started. Ask anything.",
+        },
+      ],
+    };
+
+    setChats((prev) => [fresh, ...prev]);
+    setActiveChatId(id);
     setTab("chat");
     setMobileMenu(false);
+  }
+
+  function deleteChat(id: number) {
+    const filtered = chats.filter((c) => c.id !== id);
+
+    if (!filtered.length) {
+      newChat();
+      return;
+    }
+
+    setChats(filtered);
+
+    if (activeChatId === id) {
+      setActiveChatId(filtered[0].id);
+    }
   }
 
   function copyText(text: string) {
@@ -96,22 +159,76 @@ export default function Home() {
   }
 
   function speak(text: string) {
+    if (!("speechSynthesis" in window)) return;
+
+    speechSynthesis.cancel();
+
+    const utter = new SpeechSynthesisUtterance(text);
+    utter.rate = 1;
+    utter.pitch = 1;
+    speechSynthesis.speak(utter);
+  }
+
+  function stopSpeak() {
     if ("speechSynthesis" in window) {
-      const utter = new SpeechSynthesisUtterance(text);
       speechSynthesis.cancel();
-      speechSynthesis.speak(utter);
     }
   }
 
-  function rate(type: "up" | "down") {
-    alert(type === "up" ? "Thanks for the feedback." : "Feedback saved.");
+  function startVoice() {
+    const SpeechRecognition =
+      (window as any).SpeechRecognition ||
+      (window as any).webkitSpeechRecognition;
+
+    if (!SpeechRecognition) {
+      alert("Voice recognition not supported on this browser.");
+      return;
+    }
+
+    const recognition = new SpeechRecognition();
+    recognition.lang = "en-US";
+    recognition.interimResults = true;
+    recognition.continuous = false;
+
+    recognition.onstart = () => setListening(true);
+
+    recognition.onresult = (event: any) => {
+      let transcript = "";
+
+      for (let i = 0; i < event.results.length; i++) {
+        transcript += event.results[i][0].transcript;
+      }
+
+      setInput(transcript);
+    };
+
+    recognition.onend = () => setListening(false);
+
+    recognition.onerror = () => setListening(false);
+
+    recognition.start();
+    recognitionRef.current = recognition;
+  }
+
+  function stopVoice() {
+    recognitionRef.current?.stop?.();
+    setListening(false);
   }
 
   return (
     <main className="thinksy-app">
       {/* SIDEBAR */}
       <aside className={`sidebar ${mobileMenu ? "show" : ""}`}>
-        <div className="brand">Thinksy</div>
+        <div className="sideTop">
+          <div className="brand">Thinksy</div>
+
+          <button
+            className="closeBtn"
+            onClick={() => setMobileMenu(false)}
+          >
+            <X size={18} />
+          </button>
+        </div>
 
         <button className="searchBox">
           <Search size={18} />
@@ -151,6 +268,41 @@ export default function Home() {
           <span>Library</span>
         </button>
 
+        {/* HISTORY */}
+        <div className="historyHead">
+          <History size={16} />
+          <span>Chat History</span>
+        </div>
+
+        <div className="historyList">
+          {chats.map((chat) => (
+            <div
+              key={chat.id}
+              className={`historyItem ${
+                activeChatId === chat.id ? "selected" : ""
+              }`}
+            >
+              <button
+                className="historyBtn"
+                onClick={() => {
+                  setActiveChatId(chat.id);
+                  setTab("chat");
+                  setMobileMenu(false);
+                }}
+              >
+                {chat.title}
+              </button>
+
+              <button
+                className="trashBtn"
+                onClick={() => deleteChat(chat.id)}
+              >
+                <Trash2 size={14} />
+              </button>
+            </div>
+          ))}
+        </div>
+
         <div className="bottomSide">
           <button className="navBtn" onClick={newChat}>
             <PenSquare size={18} />
@@ -161,29 +313,22 @@ export default function Home() {
 
       {/* MAIN */}
       <section className="mainPanel">
-        {/* TOPBAR */}
         <header className="topBar">
           <button
             className="iconBtn"
-            onClick={() => setMobileMenu(!mobileMenu)}
+            onClick={() => setMobileMenu(true)}
           >
             <Menu size={20} />
           </button>
 
-          <div className="title">
-            {tab === "chat"
-              ? "Thinksy"
-              : tab === "explore"
-              ? "Explore"
-              : "Library"}
-          </div>
+          <div className="title">Thinksy</div>
 
           <button className="iconBtn" onClick={newChat}>
             <PenSquare size={18} />
           </button>
         </header>
 
-        {/* CONTENT */}
+        {/* CHAT */}
         {tab === "chat" && (
           <>
             <div className="chatArea">
@@ -206,11 +351,11 @@ export default function Home() {
                         <Volume2 size={15} />
                       </button>
 
-                      <button onClick={() => rate("up")}>
+                      <button>
                         <ThumbsUp size={15} />
                       </button>
 
-                      <button onClick={() => rate("down")}>
+                      <button>
                         <ThumbsDown size={15} />
                       </button>
 
@@ -223,27 +368,21 @@ export default function Home() {
               ))}
 
               {typing && (
-                <div className="bubble ai">
-                  Thinking...
-                </div>
+                <div className="bubble ai">Thinking...</div>
               )}
 
               <div ref={chatEndRef} />
             </div>
 
-            {/* INPUT */}
             <div className="inputWrap">
               <div className="inputBox">
                 <input
                   placeholder="Ask anything"
                   value={input}
                   onChange={(e) => setInput(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") {
-                      e.preventDefault();
-                      sendMessage();
-                    }
-                  }}
+                  onKeyDown={(e) =>
+                    e.key === "Enter" && sendMessage()
+                  }
                 />
 
                 <div className="inputTools">
@@ -262,7 +401,6 @@ export default function Home() {
                   <button
                     className="sendBtn"
                     onClick={sendMessage}
-                    disabled={!input.trim() || typing}
                   >
                     <ArrowUp size={18} />
                   </button>
@@ -274,48 +412,12 @@ export default function Home() {
 
         {/* EXPLORE */}
         {tab === "explore" && (
-          <div className="pageBox">
-            <div className="card">
-              <Sparkles size={20} />
-              <h3>Trending Prompts</h3>
-              <p>Discover ideas, tasks, coding help, writing, study tools.</p>
-            </div>
-
-            <div className="card">
-              <Search size={20} />
-              <h3>Search Ideas</h3>
-              <p>Find prompts for business, AI, design and learning.</p>
-            </div>
-
-            <div className="card">
-              <Grid2X2 size={20} />
-              <h3>Tools</h3>
-              <p>Use image, voice, research and productivity tools.</p>
-            </div>
-          </div>
+          <div className="pageBox">Explore page ready</div>
         )}
 
         {/* LIBRARY */}
         {tab === "library" && (
-          <div className="pageBox">
-            <div className="card">
-              <Clock3 size={20} />
-              <h3>Recent Chats</h3>
-              <p>Your conversations can appear here.</p>
-            </div>
-
-            <div className="card">
-              <BookOpen size={20} />
-              <h3>Saved Outputs</h3>
-              <p>Store notes, answers and generated content.</p>
-            </div>
-
-            <div className="card">
-              <Folder size={20} />
-              <h3>Collections</h3>
-              <p>Organize chats by category.</p>
-            </div>
-          </div>
+          <div className="pageBox">Library page ready</div>
         )}
       </section>
 
@@ -327,12 +429,14 @@ export default function Home() {
               <Video size={18} />
             </button>
 
-            <button>
+            <button
+              onClick={listening ? stopVoice : startVoice}
+            >
               <Mic size={18} />
             </button>
 
-            <button>
-              <MoreHorizontal size={18} />
+            <button onClick={stopSpeak}>
+              <Square size={18} />
             </button>
 
             <button onClick={() => setVoiceOpen(false)}>
@@ -340,8 +444,23 @@ export default function Home() {
             </button>
           </div>
 
-          <div className="orb" />
-          <p className="voiceText">Voice Assistant Ready</p>
+          <div className={`orb ${listening ? "live" : ""}`} />
+
+          <p className="voiceText">
+            {listening
+              ? "Listening..."
+              : "Tap mic to speak"}
+          </p>
+
+          <button
+            className="voiceSend"
+            onClick={() => {
+              setVoiceOpen(false);
+              sendMessage();
+            }}
+          >
+            Send Voice Message
+          </button>
         </div>
       )}
 
@@ -360,61 +479,107 @@ export default function Home() {
           overflow: hidden;
         }
 
-        button,
-        input {
-          font-family: inherit;
-        }
-
         .thinksy-app {
           display: flex;
           height: 100vh;
-          background: #000;
         }
 
         .sidebar {
-          width: 260px;
+          width: 270px;
           background: #0a0a0a;
-          border-right: 1px solid #161616;
+          border-right: 1px solid #151515;
           padding: 14px;
           display: flex;
           flex-direction: column;
         }
 
+        .sideTop {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          margin-bottom: 14px;
+        }
+
         .brand {
           font-size: 22px;
           font-weight: 700;
-          margin-bottom: 16px;
-          padding: 8px;
         }
 
-        .bottomSide {
-          margin-top: auto;
+        .closeBtn,
+        .iconBtn,
+        .tools button,
+        .inputTools button,
+        .voiceTop button,
+        .trashBtn {
+          width: 38px;
+          height: 38px;
+          border: none;
+          border-radius: 50%;
+          background: #121212;
+          color: #fff;
         }
 
         .searchBox,
-        .navBtn {
+        .navBtn,
+        .historyBtn {
           width: 100%;
-          height: 46px;
           border: none;
-          border-radius: 14px;
           background: transparent;
-          color: #dcdcdc;
+          color: #ddd;
           display: flex;
           align-items: center;
           gap: 12px;
           padding: 0 14px;
-          margin-bottom: 8px;
-          cursor: pointer;
+          height: 46px;
+          border-radius: 14px;
         }
 
         .searchBox {
-          background: #141414;
+          background: #151515;
           color: #888;
+          margin-bottom: 8px;
         }
 
         .navBtn:hover,
-        .navBtn.active {
+        .navBtn.active,
+        .historyBtn:hover {
           background: #171717;
+        }
+
+        .historyHead {
+          display: flex;
+          gap: 8px;
+          align-items: center;
+          color: #888;
+          font-size: 13px;
+          margin: 14px 8px 8px;
+        }
+
+        .historyList {
+          flex: 1;
+          overflow-y: auto;
+        }
+
+        .historyItem {
+          display: flex;
+          gap: 6px;
+          margin-bottom: 6px;
+        }
+
+        .historyBtn {
+          flex: 1;
+          justify-content: flex-start;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+        }
+
+        .selected .historyBtn {
+          background: #171717;
+        }
+
+        .bottomSide {
+          margin-top: auto;
         }
 
         .mainPanel {
@@ -425,29 +590,16 @@ export default function Home() {
 
         .topBar {
           height: 64px;
-          border-bottom: 1px solid #141414;
+          border-bottom: 1px solid #151515;
           display: flex;
-          align-items: center;
           justify-content: space-between;
+          align-items: center;
           padding: 0 14px;
         }
 
         .title {
           font-size: 20px;
           font-weight: 700;
-        }
-
-        .iconBtn,
-        .tools button,
-        .inputTools button,
-        .voiceTop button {
-          width: 40px;
-          height: 40px;
-          border: none;
-          border-radius: 50%;
-          background: #111;
-          color: #fff;
-          cursor: pointer;
         }
 
         .chatArea {
@@ -461,16 +613,16 @@ export default function Home() {
           padding: 16px;
           border-radius: 18px;
           margin-bottom: 14px;
-          line-height: 1.55;
+          line-height: 1.5;
         }
 
         .bubble.ai {
-          background: #0f0f0f;
+          background: #101010;
           border: 1px solid #1a1a1a;
         }
 
         .bubble.user {
-          background: #1b1b1b;
+          background: #1a1a1a;
           margin-left: auto;
         }
 
@@ -512,41 +664,15 @@ export default function Home() {
           color: #000 !important;
         }
 
-        .sendBtn:disabled {
-          opacity: 0.45;
-          cursor: not-allowed;
-        }
-
         .pageBox {
           padding: 20px;
-          display: grid;
-          grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-          gap: 14px;
-        }
-
-        .card {
-          background: #101010;
-          border: 1px solid #1a1a1a;
-          border-radius: 20px;
-          padding: 18px;
-        }
-
-        .card h3 {
-          margin-top: 12px;
-          margin-bottom: 8px;
-        }
-
-        .card p {
-          color: #999;
-          line-height: 1.5;
         }
 
         .voicePanel {
           position: fixed;
           right: 20px;
           top: 90px;
-          width: 290px;
-          height: 430px;
+          width: 310px;
           background: #090909;
           border: 1px solid #1a1a1a;
           border-radius: 28px;
@@ -562,13 +688,43 @@ export default function Home() {
           width: 150px;
           height: 150px;
           border-radius: 50%;
-          margin: 90px auto 20px;
-          background: radial-gradient(circle, #ffffff, #333333);
+          margin: 40px auto 18px;
+          background: radial-gradient(circle, #fff, #333);
+        }
+
+        .orb.live {
+          animation: pulse 1s infinite;
         }
 
         .voiceText {
           text-align: center;
           color: #aaa;
+          margin-bottom: 16px;
+        }
+
+        .voiceSend {
+          width: 100%;
+          height: 46px;
+          border: none;
+          border-radius: 16px;
+          background: #fff;
+          color: #000;
+          font-weight: 700;
+        }
+
+        @keyframes pulse {
+          0% {
+            transform: scale(1);
+            opacity: 1;
+          }
+          50% {
+            transform: scale(1.08);
+            opacity: 0.7;
+          }
+          100% {
+            transform: scale(1);
+            opacity: 1;
+          }
         }
 
         @media (max-width: 900px) {
@@ -590,10 +746,9 @@ export default function Home() {
           }
 
           .voicePanel {
-            width: calc(100% - 20px);
             left: 10px;
             right: 10px;
-            top: 80px;
+            width: auto;
           }
         }
       `}</style>
