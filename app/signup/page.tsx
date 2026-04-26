@@ -1,35 +1,43 @@
 "use client";
 
-import Link from "next/link";
 import { useState } from "react";
+import { signUpEmail } from "../../lib/auth";
+import { useRouter } from "next/navigation";
 
-export default function Signup() {
-  const [email, setEmail] = useState("");
-  const [pass, setPass] = useState("");
+export default function SignupPage() {
+  const router = useRouter();
+
+  const [email,setEmail] = useState("");
+  const [password,setPassword] = useState("");
+
+  async function signup() {
+    const { error } = await signUpEmail(email,password);
+
+    if(error) return alert(error.message);
+
+    alert("Account created");
+    router.push("/login");
+  }
 
   return (
     <main className="authPage">
       <div className="card">
-        <h2>Create Account</h2>
+        <h1>Sign Up</h1>
 
         <input
           placeholder="Email"
           value={email}
-          onChange={(e) => setEmail(e.target.value)}
+          onChange={(e)=>setEmail(e.target.value)}
         />
 
         <input
           placeholder="Password"
           type="password"
-          value={pass}
-          onChange={(e) => setPass(e.target.value)}
+          value={password}
+          onChange={(e)=>setPassword(e.target.value)}
         />
 
-        <button>Create</button>
-
-        <p>
-          Already have account? <Link href="/login">Login</Link>
-        </p>
+        <button onClick={signup}>Create Account</button>
       </div>
     </main>
   );
