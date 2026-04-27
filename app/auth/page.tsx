@@ -1,192 +1,360 @@
 "use client";
 
-import { useState } from "react";
+/*
+FULL REPLACE FILE
+app/page.tsx
+
+Thinksy Phase 19 Core Chat Window
+- Auth check
+- Redirect if not logged in
+- Real API chat call (/api/chat)
+- New chat works
+- Search works
+- Sidebar close works
+- Chat history works
+- Logout works
+- Mobile ready
+- Premium black UI
+*/
+
+import { useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import {
-  Mail,
-  Lock,
-  User,
-  Eye,
-  EyeOff,
-  ArrowRight,
-  Chrome,
+  Menu,
+  X,
+  Search,
+  Plus,
+  Send,
+  LogOut,
+  MessageSquare,
+  Trash2,
 } from "lucide-react";
 
-export default function AuthPage() {
-  const [mode, setMode] = useState<"login" | "signup">("login");
-  const [showPass, setShowPass] = useState(false);
-  const [showPass2, setShowPass2] = useState(false);
+type Role = "user" | "assistant";
 
-  const [name, setName] = useState("");
-  const [email, setEmail] = useState("");
-  const [pass, setPass] = useState("");
-  const [confirm, setConfirm] = useState("");
+type Msg = {
+  role: Role;
+  text: string;
+};
 
+type Chat = {
+  id: number;
+  title: string;
+  messages: Msg[];
+};
+
+export default function Home() {
+  const router = useRouter();
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  const [ready, setReady] = useState(false);
+  const [menu, setMenu] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [typing, setTyping] = useState(false);
 
-  async function submitForm() {
-    setLoading(true);
+  const [search, setSearch] = useState("");
+  const [input, setInput] = useState("");
+
+  const [chats, setChats] = useState<Chat[]>([]);
+  const [activeId, setActiveId] = useState<number>(1);
+
+  /* ---------------- AUTH CHECK ---------------- */
+  useEffect(() => {
+    const user = localStorage.getItem("thinksy_user");
+
+    if (!user) {
+      router.push("/login");
+      return;
+    }
+
+    const saved = localStorage.getItem("thinksy_chats");
+
+    if (saved) {
+      setChats(JSON.parse(saved));
+    } else {
+      const first: Chat[] = [
+        {
+          id: 1,
+          title: "New Chat",
+          messages: [
+            {
+              role: "assistant",
+              text: "Welcome to Thinksy. Ask anything.",
+            },
+          ],
+        },
+      ];
+
+      setChats(first);
+      localStorage.setItem("thinksy_chats", JSON.stringify(first));
+    }
+
+    setReady(true);
+  }, [router]);
+
+  useEffect(() => {
+    if (ready) {
+      localStorage.setItem("thinksy_chats", JSON.stringify(chats));
+    }
+  }, [chats, ready]);
+
+  const activeChat =
+    chats.find((chat) => chat.id === activeId) || chats[0];
+
+  /* ---------------- NEW CHAT ---------------- */
+  function newChat() {
+    const id = Date.now();
+
+    const fresh: Chat = {
+      id,
+      title: "New Chat",
+      messages: [
+        {
+          role: "assistant",
+          text: "Fresh chat ready.",
+        },
+      ],
+    };
+
+    setChats((prev) => [fresh, ...prev]);
+    setActiveId(id);
+    setMenu(false);
 
     setTimeout(() => {
-      setLoading(false);
-
-      if (mode === "login") {
-        alert("Logged in successfully");
-      } else {
-        alert("Account created successfully");
-      }
-    }, 1200);
+      inputRef.current?.focus();
+    }, 100);
   }
 
-  async function googleLogin() {
-    alert("Connect Google Auth in Supabase next step");
+  /* ---------------- DELETE CHAT ---------------- */
+  function deleteChat(id: number) {
+    const updated = chats.filter((c) => c.id !== id);
+
+    if (updated.length === 0) {
+      newChat();
+      return;
+    }
+
+    setChats(updated);
+    setActiveId(updated[0].id);
   }
+
+  /* ---------------- LOGOUT ---------------- */
+  function logout() {
+    localStorage.removeItem("thinksy_user");
+    router.push("/login");
+  }
+
+  /* ---------------- SEND ---------------- */
+  async function sendMessage() {
+    const text = input.trim();
+    if (!text || !activeChat || loading) return;
+
+    const userMsg: Msg = {
+      role: "user",
+      text,
+    };
+
+    const updatedMessages = [...activeChat.messages, userMsg];
+
+    const updatedChats = chats.map((chat) =>
+      chat.id === activeId
+        ? {
+            ...chat,
+            title:
+              chat.title === "New Chat"
+                ? text.slice(0, 25)
+                : chat.title,
+            messages: updatedMessages,
+          }
+        : chat
+    );
+
+    setChats(updatedChats);
+    setInput("");
+    setTyping(true);
+    setLoading(true);
+
+    try {
+      const res = await fetch("/api/chat", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          messages: updatedMessages,
+        }),
+      });
+
+      const data = await res.json();
+
+      const aiMsg: Msg = {
+        role: "assistant",
+        text:
+          data.reply ||
+          "Unable to generate response right now.",
+      };
+
+      setChats((prev) =>
+        prev.map((chat) =>
+          chat.id === activeId
+            ? {
+                ...chat,
+                messages: [...chat.messages, aiMsg],
+              }
+            : chat
+        )
+      );
+    } catch {
+      setChats((prev) =>
+        prev.map((chat) =>
+          chat.id === activeId
+            ? {
+                ...chat,
+                messages: [
+                  ...chat.messages,
+                  {
+                    role: "assistant",
+                    text: "Connection error.",
+                  },
+                ],
+              }
+            : chat
+        )
+      );
+    }
+
+    setTyping(false);
+    setLoading(false);
+  }
+
+  /* ---------------- SEARCH ---------------- */
+  const filteredChats = chats.filter((chat) =>
+    chat.title.toLowerCase().includes(search.toLowerCase())
+  );
+
+  if (!ready) return null;
 
   return (
-    <main className="authWrap">
-      {/* Background */}
-      <div className="bgGlow glow1" />
-      <div className="bgGlow glow2" />
-      <div className="gridLayer" />
-
-      {/* Card */}
-      <section className="card">
-        {/* Brand */}
-        <div className="brandRow">
-          <div className="logo">T</div>
-          <div>
-            <h1>Thinksy</h1>
-            <p>Premium AI Workspace</p>
-          </div>
-        </div>
-
-        {/* Tabs */}
-        <div className="tabs">
-          <button
-            onClick={() => setMode("login")}
-            className={mode === "login" ? "active" : ""}
-          >
-            Login
-          </button>
+    <main className="app">
+      {/* SIDEBAR */}
+      <aside className={`sidebar ${menu ? "show" : ""}`}>
+        <div className="sideTop">
+          <div className="logo">Thinksy</div>
 
           <button
-            onClick={() => setMode("signup")}
-            className={mode === "signup" ? "active" : ""}
+            className="iconBtn mobileOnly"
+            onClick={() => setMenu(false)}
           >
-            Sign Up
+            <X size={18} />
           </button>
         </div>
 
-        {/* Heading */}
-        <div className="head">
-          <h2>{mode === "login" ? "Welcome Back" : "Create Account"}</h2>
-          <span>
-            {mode === "login"
-              ? "Access your Thinksy workspace"
-              : "Join Thinksy in seconds"}
-          </span>
-        </div>
-
-        {/* Google */}
-        <button className="googleBtn" onClick={googleLogin}>
-          <Chrome size={18} />
-          Continue with Google
+        <button className="newBtn" onClick={newChat}>
+          <Plus size={18} />
+          New Chat
         </button>
 
-        <div className="divider">
-          <span>or continue with email</span>
+        <div className="searchWrap">
+          <Search size={16} />
+          <input
+            placeholder="Search chats"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+          />
         </div>
 
-        {/* Form */}
-        <div className="formArea">
-          {mode === "signup" && (
-            <div className="field">
-              <User size={18} />
-              <input
-                placeholder="Full name"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-              />
-            </div>
-          )}
+        <div className="chatList">
+          {filteredChats.map((chat) => (
+            <div
+              key={chat.id}
+              className={`chatItem ${
+                activeId === chat.id ? "active" : ""
+              }`}
+            >
+              <button
+                className="chatSelect"
+                onClick={() => {
+                  setActiveId(chat.id);
+                  setMenu(false);
+                }}
+              >
+                <MessageSquare size={16} />
+                <span>{chat.title}</span>
+              </button>
 
-          <div className="field">
-            <Mail size={18} />
-            <input
-              placeholder="Email address"
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-            />
+              <button
+                className="trashBtn"
+                onClick={() => deleteChat(chat.id)}
+              >
+                <Trash2 size={14} />
+              </button>
+            </div>
+          ))}
+        </div>
+
+        <button className="logoutBtn" onClick={logout}>
+          <LogOut size={16} />
+          Logout
+        </button>
+      </aside>
+
+      {/* MAIN */}
+      <section className="main">
+        <header className="topbar">
+          <button
+            className="iconBtn"
+            onClick={() => setMenu(true)}
+          >
+            <Menu size={18} />
+          </button>
+
+          <div className="title">
+            {activeChat?.title || "Thinksy"}
           </div>
 
-          <div className="field">
-            <Lock size={18} />
+          <div />
+        </header>
+
+        {/* CHAT AREA */}
+        <div className="chatArea">
+          {activeChat?.messages.map((msg, i) => (
+            <div
+              key={i}
+              className={`bubble ${
+                msg.role === "user" ? "user" : "ai"
+              }`}
+            >
+              {msg.text}
+            </div>
+          ))}
+
+          {typing && (
+            <div className="bubble ai">
+              Thinking...
+            </div>
+          )}
+        </div>
+
+        {/* INPUT */}
+        <div className="inputWrap">
+          <div className="inputBox">
             <input
-              placeholder="Password"
-              type={showPass ? "text" : "password"}
-              value={pass}
-              onChange={(e) => setPass(e.target.value)}
+              ref={inputRef}
+              placeholder="Ask anything..."
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              onKeyDown={(e) =>
+                e.key === "Enter" && sendMessage()
+              }
             />
 
             <button
-              className="eyeBtn"
-              onClick={() => setShowPass(!showPass)}
+              className="sendBtn"
+              onClick={sendMessage}
             >
-              {showPass ? <EyeOff size={18} /> : <Eye size={18} />}
+              <Send size={18} />
             </button>
           </div>
-
-          {mode === "signup" && (
-            <div className="field">
-              <Lock size={18} />
-              <input
-                placeholder="Confirm password"
-                type={showPass2 ? "text" : "password"}
-                value={confirm}
-                onChange={(e) => setConfirm(e.target.value)}
-              />
-
-              <button
-                className="eyeBtn"
-                onClick={() => setShowPass2(!showPass2)}
-              >
-                {showPass2 ? <EyeOff size={18} /> : <Eye size={18} />}
-              </button>
-            </div>
-          )}
-
-          {mode === "login" && (
-            <button className="miniLink">Forgot password?</button>
-          )}
-
-          <button
-            className="submitBtn"
-            onClick={submitForm}
-            disabled={loading}
-          >
-            {loading
-              ? "Please wait..."
-              : mode === "login"
-              ? "Login"
-              : "Create Account"}
-
-            {!loading && <ArrowRight size={18} />}
-          </button>
-        </div>
-
-        {/* Footer */}
-        <div className="switchText">
-          {mode === "login"
-            ? "New to Thinksy?"
-            : "Already have an account?"}
-
-          <button
-            onClick={() =>
-              setMode(mode === "login" ? "signup" : "login")
-            }
-          >
-            {mode === "login" ? "Sign Up" : "Login"}
-          </button>
         </div>
       </section>
 
@@ -198,260 +366,205 @@ export default function AuthPage() {
         }
 
         body {
-          font-family: Inter, sans-serif;
           background: #000;
           color: #fff;
+          font-family: Inter, sans-serif;
         }
 
-        .authWrap {
-          min-height: 100vh;
+        .app {
+          height: 100vh;
           display: flex;
-          align-items: center;
-          justify-content: center;
-          padding: 24px;
-          position: relative;
-          overflow: hidden;
           background: #000;
         }
 
-        .bgGlow {
-          position: absolute;
-          width: 420px;
-          height: 420px;
-          border-radius: 50%;
-          filter: blur(120px);
-          opacity: 0.22;
-          animation: float 8s ease-in-out infinite;
+        .sidebar {
+          width: 290px;
+          background: #0b0b0b;
+          border-right: 1px solid #171717;
+          padding: 14px;
+          display: flex;
+          flex-direction: column;
         }
 
-        .glow1 {
-          background: #fff;
-          top: -80px;
-          left: -80px;
-        }
-
-        .glow2 {
-          background: #fff;
-          bottom: -80px;
-          right: -80px;
-          animation-delay: 2s;
-        }
-
-        .gridLayer {
-          position: absolute;
-          inset: 0;
-          background-image: linear-gradient(
-              rgba(255,255,255,0.03) 1px,
-              transparent 1px
-            ),
-            linear-gradient(
-              90deg,
-              rgba(255,255,255,0.03) 1px,
-              transparent 1px
-            );
-          background-size: 40px 40px;
-          opacity: 0.4;
-        }
-
-        .card {
-          width: 100%;
-          max-width: 460px;
-          position: relative;
-          z-index: 2;
-          background: rgba(12, 12, 12, 0.92);
-          border: 1px solid rgba(255,255,255,0.08);
-          border-radius: 28px;
-          padding: 28px;
-          backdrop-filter: blur(24px);
-          box-shadow: 0 20px 80px rgba(0,0,0,0.55);
-          animation: rise 0.7s ease;
-        }
-
-        .brandRow {
+        .sideTop,
+        .chatItem,
+        .chatSelect,
+        .topbar,
+        .inputBox {
           display: flex;
           align-items: center;
-          gap: 14px;
-          margin-bottom: 24px;
+        }
+
+        .sideTop,
+        .topbar {
+          justify-content: space-between;
         }
 
         .logo {
-          width: 52px;
-          height: 52px;
-          border-radius: 16px;
-          background: linear-gradient(135deg, #fff, #fff);
-          color: #000;
-          font-size: 24px;
-          font-weight: 900;
-          display: flex;
-          align-items: center;
-          justify-content: center;
+          font-size: 22px;
+          font-weight: 800;
         }
 
-        .brandRow h1 {
-          font-size: 24px;
-        }
-
-        .brandRow p {
-          color: #888;
-          font-size: 13px;
-          margin-top: 2px;
-        }
-
-        .tabs {
-          display: grid;
-          grid-template-columns: 1fr 1fr;
-          gap: 8px;
-          background: #111;
-          padding: 6px;
-          border-radius: 16px;
-          margin-bottom: 24px;
-        }
-
-        .tabs button {
+        .iconBtn,
+        .sendBtn,
+        .trashBtn {
+          width: 42px;
           height: 42px;
           border: none;
           border-radius: 12px;
-          background: transparent;
-          color: #999;
-          font-weight: 600;
+          background: #151515;
+          color: #fff;
         }
 
-        .tabs button.active {
+        .newBtn,
+        .logoutBtn {
+          height: 48px;
+          border: none;
+          border-radius: 14px;
           background: #fff;
           color: #000;
-        }
-
-        .head h2 {
-          font-size: 28px;
-          margin-bottom: 6px;
-        }
-
-        .head span {
-          color: #8a8a8a;
-          font-size: 14px;
-        }
-
-        .googleBtn {
-          width: 100%;
-          height: 52px;
-          border: none;
-          border-radius: 16px;
-          background: #111;
-          color: #fff;
+          font-weight: 700;
           display: flex;
           align-items: center;
           justify-content: center;
           gap: 10px;
-          margin-top: 22px;
-          font-size: 15px;
+          margin-top: 14px;
         }
 
-        .divider {
-          text-align: center;
-          color: #666;
-          font-size: 13px;
-          margin: 18px 0;
+        .logoutBtn {
+          margin-top: auto;
+          background: #151515;
+          color: #fff;
         }
 
-        .formArea {
-          display: flex;
-          flex-direction: column;
-          gap: 14px;
-        }
-
-        .field {
-          height: 54px;
-          border-radius: 16px;
-          background: #0f0f0f;
-          border: 1px solid #1c1c1c;
+        .searchWrap {
+          height: 46px;
+          margin-top: 14px;
+          background: #121212;
+          border-radius: 14px;
+          padding: 0 12px;
           display: flex;
           align-items: center;
-          padding: 0 14px;
           gap: 10px;
         }
 
-        .field input {
+        .searchWrap input,
+        .inputBox input {
           flex: 1;
           background: transparent;
           border: none;
           outline: none;
           color: #fff;
-          font-size: 15px;
         }
 
-        .eyeBtn {
-          background: transparent;
-          border: none;
-          color: #999;
+        .chatList {
+          margin-top: 14px;
+          overflow-y: auto;
         }
 
-        .miniLink {
-          background: transparent;
-          border: none;
-          color: #8ca7ff;
-          text-align: right;
-          font-size: 14px;
+        .chatItem {
+          gap: 8px;
+          margin-bottom: 8px;
         }
 
-        .submitBtn {
-          margin-top: 6px;
-          height: 56px;
-          border: none;
-          border-radius: 18px;
-          background: linear-gradient(135deg, #fff, #d6d6d6);
-          color: #000;
-          font-weight: 800;
-          font-size: 15px;
-          display: flex;
-          align-items: center;
-          justify-content: center;
+        .chatSelect {
+          flex: 1;
           gap: 10px;
-        }
-
-        .switchText {
-          margin-top: 18px;
-          text-align: center;
-          color: #777;
-          font-size: 14px;
-        }
-
-        .switchText button {
-          background: transparent;
           border: none;
+          height: 46px;
+          border-radius: 14px;
+          padding: 0 12px;
+          background: #111;
           color: #fff;
-          margin-left: 6px;
+          justify-content: flex-start;
+        }
+
+        .chatItem.active .chatSelect {
+          background: #1c1c1c;
+        }
+
+        .main {
+          flex: 1;
+          display: flex;
+          flex-direction: column;
+        }
+
+        .topbar {
+          height: 64px;
+          border-bottom: 1px solid #161616;
+          padding: 0 14px;
+        }
+
+        .title {
+          font-size: 18px;
           font-weight: 700;
         }
 
-        @keyframes float {
-          0%,100% { transform: translateY(0px); }
-          50% { transform: translateY(-20px); }
+        .chatArea {
+          flex: 1;
+          overflow-y: auto;
+          padding: 20px;
         }
 
-        @keyframes rise {
-          from {
-            opacity: 0;
-            transform: translateY(20px) scale(.97);
-          }
-          to {
-            opacity: 1;
-            transform: translateY(0) scale(1);
-          }
+        .bubble {
+          max-width: 760px;
+          padding: 14px 16px;
+          border-radius: 18px;
+          margin-bottom: 14px;
+          line-height: 1.5;
         }
 
-        @media (max-width: 600px) {
-          .card {
-            padding: 22px;
-            border-radius: 24px;
+        .bubble.ai {
+          background: #101010;
+          border: 1px solid #181818;
+        }
+
+        .bubble.user {
+          background: #1a1a1a;
+          margin-left: auto;
+        }
+
+        .inputWrap {
+          padding: 16px;
+        }
+
+        .inputBox {
+          background: #101010;
+          border: 1px solid #1b1b1b;
+          border-radius: 20px;
+          padding: 8px;
+          gap: 10px;
+        }
+
+        .sendBtn {
+          background: #fff;
+          color: #000;
+        }
+
+        .mobileOnly {
+          display: none;
+        }
+
+        @media (max-width: 900px) {
+          .sidebar {
+            position: fixed;
+            left: -320px;
+            top: 0;
+            bottom: 0;
+            z-index: 100;
+            transition: 0.25s;
           }
 
-          .head h2 {
-            font-size: 24px;
+          .sidebar.show {
+            left: 0;
           }
 
-          .logo {
-            width: 46px;
-            height: 46px;
+          .mobileOnly {
+            display: flex;
+          }
+
+          .bubble {
+            max-width: 100%;
           }
         }
       `}</style>
