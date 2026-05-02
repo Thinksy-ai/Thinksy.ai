@@ -37,44 +37,34 @@ export default function Home() {
   const router = useRouter();
   const bottomRef = useRef<HTMLDivElement>(null);
 
-  const [userReady, setUserReady] = useState(false);
+  const [ready, setReady] = useState(false);
   const [sidebar, setSidebar] = useState(false);
+  const [tab, setTab] = useState<"chat" | "explore" | "library">("chat");
 
   const [input, setInput] = useState("");
-  const [typing, setTyping] = useState(false);
   const [search, setSearch] = useState("");
-
-  const [tab, setTab] = useState<
-    "chat" | "explore" | "library"
-  >("chat");
+  const [typing, setTyping] = useState(false);
 
   const [chats, setChats] = useState<Chat[]>([]);
-  const [activeId, setActiveId] =
-    useState<number>(1);
+  const [activeId, setActiveId] = useState<number>(1);
 
-  /* AUTH CHECK */
   useEffect(() => {
-    async function check() {
-      const { data } =
-        await supabase.auth.getSession();
+    async function boot() {
+      const { data } = await supabase.auth.getSession();
 
       if (!data.session) {
         router.push("/login");
         return;
       }
 
-      const saved =
-        localStorage.getItem(
-          "thinksy_chats"
-        );
+      const saved = localStorage.getItem("thinksy_chats");
 
       if (saved) {
-        const parsed: Chat[] =
-          JSON.parse(saved);
+        const parsed: Chat[] = JSON.parse(saved);
         setChats(parsed);
         setActiveId(parsed[0]?.id || 1);
       } else {
-        const first: Chat[] = [
+        const starter: Chat[] = [
           {
             id: 1,
             title: "New Chat",
@@ -86,18 +76,18 @@ export default function Home() {
             ],
           },
         ];
-        setChats(first);
+
+        setChats(starter);
       }
 
-      setUserReady(true);
+      setReady(true);
     }
 
-    check();
+    boot();
   }, [router]);
 
-  /* SAVE */
   useEffect(() => {
-    if (chats.length) {
+    if (chats.length > 0) {
       localStorage.setItem(
         "thinksy_chats",
         JSON.stringify(chats)
@@ -105,7 +95,6 @@ export default function Home() {
     }
   }, [chats]);
 
-  /* AUTO SCROLL */
   useEffect(() => {
     bottomRef.current?.scrollIntoView({
       behavior: "smooth",
@@ -113,11 +102,9 @@ export default function Home() {
   }, [chats, typing]);
 
   const active =
-    chats.find(
-      (c) => c.id === activeId
-    ) || chats[0];
+    chats.find((chat) => chat.id === activeId) ||
+    chats[0];
 
-  /* NEW CHAT */
   function newChat() {
     const id = Date.now();
 
@@ -132,20 +119,29 @@ export default function Home() {
       ],
     };
 
-    setChats([item, ...chats]);
+    setChats((prev) => [item, ...prev]);
     setActiveId(id);
     setTab("chat");
     setSidebar(false);
   }
 
-  /* DELETE CHAT */
   function deleteChat(id: number) {
-    const left = chats.filter(
-      (c) => c.id !== id
-    );
+    const left = chats.filter((chat) => chat.id !== id);
 
-    if (!left.length) {
-      newChat();
+    if (left.length === 0) {
+      const fallback: Chat = {
+        id: Date.now(),
+        title: "New Chat",
+        messages: [
+          {
+            role: "assistant",
+            text: "Fresh chat started.",
+          },
+        ],
+      };
+
+      setChats([fallback]);
+      setActiveId(fallback.id);
       return;
     }
 
@@ -153,32 +149,30 @@ export default function Home() {
     setActiveId(left[0].id);
   }
 
-  /* SEND MESSAGE */
   async function sendMessage() {
     const text = input.trim();
+
     if (!text || !active) return;
 
-    const updated = chats.map((chat) =>
-      chat.id === active.id
-        ? {
-            ...chat,
-            title:
-              chat.title ===
-              "New Chat"
-                ? text.slice(
-                    0,
-                    25
-                  )
-                : chat.title,
-            messages: [
-              ...chat.messages,
-              {
-                role: "user",
-                text,
-              },
-            ],
-          }
-        : chat
+    const updated: Chat[] = chats.map(
+      (chat): Chat =>
+        chat.id === active.id
+          ? {
+              ...chat,
+              title:
+                chat.title === "New Chat"
+                  ? text.slice(0, 25)
+                  : chat.title,
+
+              messages: [
+                ...chat.messages,
+                {
+                  role: "user" as Role,
+                  text: text,
+                },
+              ],
+            }
+          : chat
     );
 
     setChats(updated);
@@ -186,58 +180,59 @@ export default function Home() {
     setTyping(true);
 
     try {
-      const res = await fetch(
-        "/api/chat",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type":
-              "application/json",
-          },
-          body: JSON.stringify({
-            message: text,
-          }),
-        }
-      );
+      const res = await fetch("/api/chat", {
+        method: "POST",
+        headers: {
+          "Content-Type":
+            "application/json",
+        },
+        body: JSON.stringify({
+          message: text,
+        }),
+      });
 
-      const data =
-        await res.json();
+      const data = await res.json();
 
       const reply =
         data.reply ||
         "No response.";
 
       setChats((prev) =>
-        prev.map((chat) =>
-          chat.id === active.id
-            ? {
-                ...chat,
-                messages: [
-                  ...chat.messages,
-                  {
-                    role: "assistant",
-                    text: reply,
-                  },
-                ],
-              }
-            : chat
+        prev.map(
+          (chat): Chat =>
+            chat.id === active.id
+              ? {
+                  ...chat,
+                  messages: [
+                    ...chat.messages,
+                    {
+                      role:
+                        "assistant" as Role,
+                      text: reply,
+                    },
+                  ],
+                }
+              : chat
         )
       );
     } catch {
       setChats((prev) =>
-        prev.map((chat) =>
-          chat.id === active.id
-            ? {
-                ...chat,
-                messages: [
-                  ...chat.messages,
-                  {
-                    role: "assistant",
-                    text: "Error reaching AI.",
-                  },
-                ],
-              }
-            : chat
+        prev.map(
+          (chat): Chat =>
+            chat.id === active.id
+              ? {
+                  ...chat,
+                  messages: [
+                    ...chat.messages,
+                    {
+                      role:
+                        "assistant" as Role,
+                      text:
+                        "Error reaching AI.",
+                    },
+                  ],
+                }
+              : chat
         )
       );
     }
@@ -251,21 +246,16 @@ export default function Home() {
   }
 
   function copyText(text: string) {
-    navigator.clipboard.writeText(
-      text
-    );
+    navigator.clipboard.writeText(text);
   }
 
-  const filtered = chats.filter(
-    (c) =>
-      c.title
-        .toLowerCase()
-        .includes(
-          search.toLowerCase()
-        )
+  const filtered = chats.filter((chat) =>
+    chat.title
+      .toLowerCase()
+      .includes(search.toLowerCase())
   );
 
-  if (!userReady) return null;
+  if (!ready) return null;
 
   return (
     <main className="app">
@@ -352,7 +342,7 @@ export default function Home() {
           {filtered.map((chat) => (
             <div
               key={chat.id}
-              className={`chatItem ${
+              className={`chatRow ${
                 activeId === chat.id
                   ? "picked"
                   : ""
@@ -361,15 +351,9 @@ export default function Home() {
               <button
                 className="chatBtn"
                 onClick={() => {
-                  setActiveId(
-                    chat.id
-                  );
-                  setTab(
-                    "chat"
-                  );
-                  setSidebar(
-                    false
-                  );
+                  setActiveId(chat.id);
+                  setTab("chat");
+                  setSidebar(false);
                 }}
               >
                 {chat.title}
@@ -378,14 +362,10 @@ export default function Home() {
               <button
                 className="trash"
                 onClick={() =>
-                  deleteChat(
-                    chat.id
-                  )
+                  deleteChat(chat.id)
                 }
               >
-                <Trash2
-                  size={14}
-                />
+                <Trash2 size={14} />
               </button>
             </div>
           ))}
@@ -402,7 +382,7 @@ export default function Home() {
 
       {/* MAIN */}
       <section className="main">
-        <header className="top">
+        <header className="topBar">
           <button
             className="icon"
             onClick={() =>
@@ -417,54 +397,43 @@ export default function Home() {
           </div>
         </header>
 
-        {/* CHAT TAB */}
         {tab === "chat" && (
           <>
-            <div className="msgs">
+            <div className="chatArea">
               {active?.messages.map(
-                (
-                  m,
-                  i
-                ) => (
+                (msg, i) => (
                   <div
                     key={i}
                     className={`bubble ${
-                      m.role ===
-                      "user"
+                      msg.role === "user"
                         ? "user"
                         : "ai"
                     }`}
                   >
-                    {m.text}
+                    {msg.text}
 
-                    {m.role ===
+                    {msg.role ===
                       "assistant" && (
                       <div className="tools">
                         <button
                           onClick={() =>
                             copyText(
-                              m.text
+                              msg.text
                             )
                           }
                         >
-                          <Copy
-                            size={
-                              14
-                            }
-                          />
+                          <Copy size={14} />
                         </button>
+
                         <button>
                           <ThumbsUp
-                            size={
-                              14
-                            }
+                            size={14}
                           />
                         </button>
+
                         <button>
                           <ThumbsDown
-                            size={
-                              14
-                            }
+                            size={14}
                           />
                         </button>
                       </div>
@@ -484,18 +453,15 @@ export default function Home() {
 
             <div className="inputWrap">
               <input
-                value={input}
                 placeholder="Ask anything"
+                value={input}
                 onChange={(e) =>
                   setInput(
                     e.target.value
                   )
                 }
-                onKeyDown={(
-                  e
-                ) =>
-                  e.key ===
-                    "Enter" &&
+                onKeyDown={(e) =>
+                  e.key === "Enter" &&
                   sendMessage()
                 }
               />
@@ -505,10 +471,8 @@ export default function Home() {
               </button>
 
               <button
-                className="send"
-                onClick={
-                  sendMessage
-                }
+                className="sendBtn"
+                onClick={sendMessage}
               >
                 <Send size={18} />
               </button>
@@ -516,20 +480,19 @@ export default function Home() {
           </>
         )}
 
-        {/* EXPLORE */}
         {tab === "explore" && (
           <div className="empty">
-            Explore page ready for prompts,
-            images and trending AI tools.
+            Explore prompts, image
+            generation and trending AI
+            tools page.
           </div>
         )}
 
-        {/* LIBRARY */}
         {tab === "library" && (
           <div className="empty">
-            {chats.length
-              ? `Saved chats: ${chats.length}`
-              : "No chats yet"}
+            {chats.length > 0
+              ? `Saved Chats: ${chats.length}`
+              : "No chats found."}
           </div>
         )}
       </section>
@@ -551,6 +514,7 @@ export default function Home() {
         .app {
           display: flex;
           height: 100vh;
+          overflow: hidden;
         }
 
         .sidebar {
@@ -565,14 +529,26 @@ export default function Home() {
         }
 
         .sideTop,
-        .top {
+        .topBar {
           display: flex;
-          justify-content: space-between;
           align-items: center;
+          justify-content: space-between;
+        }
+
+        .topBar {
+          height: 64px;
+          border-bottom: 1px solid
+            #141414;
+          padding: 0 14px;
+        }
+
+        .logo {
+          font-size: 22px;
+          font-weight: 700;
         }
 
         .icon,
-        .send,
+        .sendBtn,
         .trash {
           width: 42px;
           height: 42px;
@@ -584,38 +560,38 @@ export default function Home() {
         }
 
         .searchBox {
+          height: 46px;
+          background: #111;
+          border-radius: 14px;
           display: flex;
           align-items: center;
           gap: 10px;
-          background: #121212;
           padding: 0 14px;
-          height: 46px;
-          border-radius: 14px;
         }
 
         .searchBox input,
         .inputWrap input {
           flex: 1;
-          background: none;
           border: none;
-          color: #fff;
           outline: none;
+          background: transparent;
+          color: #fff;
         }
 
         .nav,
         .chatBtn,
         .logout {
+          width: 100%;
+          height: 46px;
           border: none;
+          border-radius: 14px;
           background: #111;
           color: #fff;
-          height: 46px;
-          border-radius: 14px;
-          padding: 0 14px;
           display: flex;
           align-items: center;
           gap: 10px;
+          padding: 0 14px;
           cursor: pointer;
-          width: 100%;
         }
 
         .active,
@@ -625,10 +601,10 @@ export default function Home() {
 
         .history {
           flex: 1;
-          overflow: auto;
+          overflow-y: auto;
         }
 
-        .chatItem {
+        .chatRow {
           display: flex;
           gap: 8px;
           margin-bottom: 8px;
@@ -648,16 +624,9 @@ export default function Home() {
           flex-direction: column;
         }
 
-        .top {
-          height: 64px;
-          padding: 0 14px;
-          border-bottom: 1px solid
-            #151515;
-        }
-
-        .msgs {
+        .chatArea {
           flex: 1;
-          overflow: auto;
+          overflow-y: auto;
           padding: 20px;
         }
 
@@ -666,13 +635,15 @@ export default function Home() {
           padding: 16px;
           border-radius: 18px;
           margin-bottom: 14px;
+          line-height: 1.5;
         }
 
-        .ai {
+        .bubble.ai {
           background: #101010;
+          border: 1px solid #171717;
         }
 
-        .user {
+        .bubble.user {
           background: #1a1a1a;
           margin-left: auto;
         }
@@ -680,7 +651,7 @@ export default function Home() {
         .tools {
           display: flex;
           gap: 8px;
-          margin-top: 10px;
+          margin-top: 12px;
         }
 
         .tools button {
@@ -688,14 +659,14 @@ export default function Home() {
           height: 34px;
           border: none;
           border-radius: 50%;
-          background: #161616;
+          background: #181818;
           color: #fff;
         }
 
         .inputWrap {
-          padding: 14px;
           display: flex;
           gap: 10px;
+          padding: 14px;
           border-top: 1px solid
             #151515;
         }
@@ -707,7 +678,7 @@ export default function Home() {
           padding: 0 16px;
         }
 
-        .send {
+        .sendBtn {
           background: #fff;
           color: #000;
         }
@@ -717,9 +688,9 @@ export default function Home() {
           display: flex;
           align-items: center;
           justify-content: center;
-          color: #888;
-          padding: 20px;
+          color: #777;
           text-align: center;
+          padding: 20px;
         }
 
         .mobileOnly {
@@ -729,10 +700,10 @@ export default function Home() {
         @media (max-width: 900px) {
           .sidebar {
             position: fixed;
-            left: -300px;
             top: 0;
             bottom: 0;
-            z-index: 100;
+            left: -300px;
+            z-index: 99;
             transition: 0.25s;
           }
 
@@ -746,6 +717,10 @@ export default function Home() {
 
           .bubble {
             max-width: 100%;
+          }
+
+          .logo {
+            font-size: 20px;
           }
         }
       `}</style>
