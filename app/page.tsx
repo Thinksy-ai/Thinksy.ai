@@ -1,24 +1,26 @@
+// app/chat/page.tsx
+
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   Menu,
-  Plus,
   Search,
+  Plus,
+  Send,
+  Mic,
   Settings,
-  Crown,
-  LogOut,
   User,
   Trash2,
+  LogOut,
+  Crown,
+  X,
   Copy,
   ThumbsUp,
   ThumbsDown,
-  Mic,
-  Send,
-  MessageSquare,
-  X,
   Sparkles,
+  MessageSquare,
 } from "lucide-react";
 
 import { createClient } from "@supabase/supabase-js";
@@ -31,6 +33,7 @@ const supabase = createClient(
 type Role = "user" | "assistant";
 
 type Message = {
+  id: number;
   role: Role;
   text: string;
 };
@@ -41,40 +44,45 @@ type Chat = {
   messages: Message[];
 };
 
-export default function ChatPage() {
+export default function LuminaUltra() {
   const router = useRouter();
 
+  const bottomRef = useRef<HTMLDivElement>(null);
+
   const [loading, setLoading] = useState(true);
+
   const [user, setUser] = useState<any>(null);
 
   const [sidebar, setSidebar] = useState(false);
-  const [input, setInput] = useState("");
 
-  const [typing, setTyping] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
 
   const [accountOpen, setAccountOpen] = useState(false);
 
+  const [voiceOpen, setVoiceOpen] = useState(false);
+
+  const [typing, setTyping] = useState(false);
+
   const [popup, setPopup] = useState("");
 
-  const [voiceMode, setVoiceMode] = useState(false);
+  const [input, setInput] = useState("");
+
+  const [search, setSearch] = useState("");
+
+  const [themeGlow, setThemeGlow] = useState(true);
 
   const [currentChat, setCurrentChat] = useState(0);
 
   const [chats, setChats] = useState<Chat[]>([
     {
-      id: 0,
-      title: "New Chat",
-      messages: [
-        {
-          role: "assistant",
-          text: "Welcome to Lumina AI Ultra.",
-        },
-      ],
+      id: 1,
+      title: "Lumina Welcome",
+      messages: [],
     },
   ]);
 
   useEffect(() => {
-    async function checkUser() {
+    async function getUser() {
       const {
         data: { session },
       } = await supabase.auth.getSession();
@@ -88,7 +96,7 @@ export default function ChatPage() {
       setLoading(false);
     }
 
-    checkUser();
+    getUser();
 
     const {
       data: { subscription },
@@ -103,7 +111,13 @@ export default function ChatPage() {
     return () => subscription.unsubscribe();
   }, [router]);
 
-  function showPopup(text: string) {
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView({
+      behavior: "smooth",
+    });
+  }, [chats, typing]);
+
+  function toast(text: string) {
     setPopup(text);
 
     setTimeout(() => {
@@ -111,44 +125,43 @@ export default function ChatPage() {
     }, 2200);
   }
 
-  function newChat() {
-    const fresh: Chat = {
+  function createChat() {
+    const newChat: Chat = {
       id: Date.now(),
       title: "New Chat",
-      messages: [
-        {
-          role: "assistant",
-          text: "Fresh Lumina AI chat started.",
-        },
-      ],
+      messages: [],
     };
 
-    setChats((prev) => [fresh, ...prev]);
+    setChats((prev) => [newChat, ...prev]);
 
     setCurrentChat(0);
 
-    showPopup("New chat created");
+    toast("Fresh chat created");
   }
 
   async function sendMessage() {
     if (!input.trim()) return;
 
-    const userMsg: Message = {
+    const userMessage: Message = {
+      id: Date.now(),
       role: "user",
       text: input,
     };
 
     const updatedChats = [...chats];
 
-    updatedChats[currentChat].messages.push(userMsg);
+    updatedChats[currentChat].messages.push(userMessage);
 
-    if (updatedChats[currentChat].title === "New Chat") {
-      updatedChats[currentChat].title = input.slice(0, 20);
+    if (
+      updatedChats[currentChat].title === "New Chat" ||
+      updatedChats[currentChat].title === "Lumina Welcome"
+    ) {
+      updatedChats[currentChat].title = input.slice(0, 22);
     }
 
     setChats(updatedChats);
 
-    const question = input;
+    const userText = input;
 
     setInput("");
 
@@ -161,24 +174,28 @@ export default function ChatPage() {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          message: question,
+          message: userText,
         }),
       });
 
       const data = await res.json();
 
-      const aiMsg: Message = {
+      const aiMessage: Message = {
+        id: Date.now() + 1,
         role: "assistant",
-        text: data.reply || "AI unavailable.",
+        text:
+          data.reply ||
+          "Lumina AI is temporarily unavailable.",
       };
 
-      updatedChats[currentChat].messages.push(aiMsg);
+      updatedChats[currentChat].messages.push(aiMessage);
 
       setChats([...updatedChats]);
     } catch {
       updatedChats[currentChat].messages.push({
+        id: Date.now() + 2,
         role: "assistant",
-        text: "Something went wrong.",
+        text: "AI request failed.",
       });
 
       setChats([...updatedChats]);
@@ -187,18 +204,18 @@ export default function ChatPage() {
     setTyping(false);
   }
 
-  function copyText(text: string) {
+  function copy(text: string) {
     navigator.clipboard.writeText(text);
 
-    showPopup("Copied to clipboard");
+    toast("Copied");
   }
 
-  function react(type: string) {
-    showPopup(
-      type === "up"
-        ? "Thanks for the feedback"
-        : "We will improve the response"
-    );
+  function reaction(type: "up" | "down") {
+    if (type === "up") {
+      toast("Thanks for the feedback");
+    } else {
+      toast("Response reported");
+    }
   }
 
   async function logout() {
@@ -208,7 +225,7 @@ export default function ChatPage() {
   }
 
   async function deleteAccount() {
-    showPopup("Account deletion system coming soon");
+    toast("Delete system connected later");
   }
 
   function startVoice() {
@@ -217,51 +234,73 @@ export default function ChatPage() {
       (window as any).webkitSpeechRecognition;
 
     if (!SpeechRecognition) {
-      showPopup("Voice not supported");
+      toast("Voice unsupported");
       return;
     }
+
+    setVoiceOpen(true);
 
     const recognition = new SpeechRecognition();
 
     recognition.lang = "en-US";
 
+    recognition.continuous = false;
+
+    recognition.interimResults = false;
+
     recognition.start();
 
-    setVoiceMode(true);
-
     recognition.onresult = (event: any) => {
-      const transcript = event.results[0][0].transcript;
+      const transcript =
+        event.results[0][0].transcript;
 
       setInput(transcript);
 
-      setVoiceMode(false);
+      setVoiceOpen(false);
 
-      showPopup("Voice captured");
+      toast("Voice captured");
     };
 
     recognition.onerror = () => {
-      setVoiceMode(false);
+      setVoiceOpen(false);
+
+      toast("Voice cancelled");
     };
 
     recognition.onend = () => {
-      setVoiceMode(false);
+      setVoiceOpen(false);
     };
   }
 
+  const filteredChats = useMemo(() => {
+    return chats.filter((chat) =>
+      chat.title
+        .toLowerCase()
+        .includes(search.toLowerCase())
+    );
+  }, [search, chats]);
+
   if (loading) {
     return (
-      <div className="loadingScreen">
-        <div className="loader" />
+      <div className="loaderScreen">
+        <div className="loaderOrb" />
       </div>
     );
   }
 
   return (
     <main className="app">
+      {/* BG */}
+
+      <div className="bgText">LUMINA</div>
+
+      <div className="glow glow1" />
+      <div className="glow glow2" />
+
       {/* SIDEBAR */}
 
       <aside className={`sidebar ${sidebar ? "show" : ""}`}>
-        <div className="sidebarTop">
+        <div className="sideTop">
           <div className="logo">
             <Sparkles size={18} />
             Lumina AI
@@ -275,7 +314,10 @@ export default function ChatPage() {
           </button>
         </div>
 
-        <button className="newChatBtn" onClick={newChat}>
+        <button
+          className="newChatBtn"
+          onClick={createChat}
+        >
           <Plus size={18} />
           New Chat
         </button>
@@ -283,31 +325,58 @@ export default function ChatPage() {
         <div className="searchBox">
           <Search size={16} />
 
-          <input placeholder="Search chats..." />
+          <input
+            placeholder="Search chats..."
+            value={search}
+            onChange={(e) =>
+              setSearch(e.target.value)
+            }
+          />
         </div>
 
-        <div className="chatHistory">
-          {chats.map((chat, index) => (
+        <div className="history">
+          {filteredChats.length === 0 && (
+            <div className="emptyHistory">
+              No chats found
+            </div>
+          )}
+
+          {filteredChats.map((chat, index) => (
             <button
               key={chat.id}
               className={`historyItem ${
-                currentChat === index ? "active" : ""
+                currentChat === index
+                  ? "active"
+                  : ""
               }`}
               onClick={() => {
-                setCurrentChat(index);
+                const realIndex = chats.findIndex(
+                  (c) => c.id === chat.id
+                );
+
+                setCurrentChat(realIndex);
 
                 setSidebar(false);
               }}
             >
               <MessageSquare size={16} />
-              {chat.title}
+
+              <span>{chat.title}</span>
             </button>
           ))}
         </div>
 
-        <div className="bottomSidebar">
+        <div className="bottomMenu">
           <button
-            className="accountBtn"
+            className="bottomBtn"
+            onClick={() => setSettingsOpen(true)}
+          >
+            <Settings size={18} />
+            Settings
+          </button>
+
+          <button
+            className="bottomBtn"
             onClick={() => setAccountOpen(true)}
           >
             <User size={18} />
@@ -321,59 +390,116 @@ export default function ChatPage() {
       <section className="main">
         <header className="topbar">
           <button
-            className="menuBtn"
+            className="iconBtn"
             onClick={() => setSidebar(true)}
           >
             <Menu size={20} />
           </button>
 
-          <div className="topTitle">Lumina AI Ultra</div>
+          <div className="brand">
+            Lumina Ultra
+          </div>
 
           <button
             className="premiumBtn"
-            onClick={() => showPopup("Lumina Ultra Premium")}
+            onClick={() =>
+              toast("Lumina Premium Coming Soon")
+            }
           >
             <Crown size={18} />
           </button>
         </header>
 
+        {/* HERO */}
+
+        {chats[currentChat].messages.length === 0 && (
+          <div className="hero">
+            <h1>
+              What can I help with today?
+            </h1>
+
+            <p>
+              Ultra fast AI • Voice • Files •
+              Premium Intelligence
+            </p>
+
+            <div className="heroCards">
+              <div className="heroCard">
+                Create ideas
+              </div>
+
+              <div className="heroCard">
+                Generate code
+              </div>
+
+              <div className="heroCard">
+                Research anything
+              </div>
+
+              <div className="heroCard">
+                Study smarter
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* CHAT */}
 
         <div className="chatArea">
-          {chats[currentChat]?.messages.map((msg, index) => (
-            <div
-              key={index}
-              className={`message ${
-                msg.role === "user" ? "user" : "ai"
-              }`}
-            >
-              <div className="msgText">{msg.text}</div>
-
-              {msg.role === "assistant" && (
-                <div className="actions">
-                  <button onClick={() => copyText(msg.text)}>
-                    <Copy size={15} />
-                  </button>
-
-                  <button onClick={() => react("up")}>
-                    <ThumbsUp size={15} />
-                  </button>
-
-                  <button onClick={() => react("down")}>
-                    <ThumbsDown size={15} />
-                  </button>
+          {chats[currentChat].messages.map(
+            (msg) => (
+              <div
+                key={msg.id}
+                className={`msg ${
+                  msg.role === "user"
+                    ? "user"
+                    : "ai"
+                }`}
+              >
+                <div className="msgText">
+                  {msg.text}
                 </div>
-              )}
-            </div>
-          ))}
+
+                {msg.role === "assistant" && (
+                  <div className="actions">
+                    <button
+                      onClick={() =>
+                        copy(msg.text)
+                      }
+                    >
+                      <Copy size={15} />
+                    </button>
+
+                    <button
+                      onClick={() =>
+                        reaction("up")
+                      }
+                    >
+                      <ThumbsUp size={15} />
+                    </button>
+
+                    <button
+                      onClick={() =>
+                        reaction("down")
+                      }
+                    >
+                      <ThumbsDown size={15} />
+                    </button>
+                  </div>
+                )}
+              </div>
+            )
+          )}
 
           {typing && (
             <div className="typing">
-              <div className="dot" />
-              <div className="dot" />
-              <div className="dot" />
+              <span />
+              <span />
+              <span />
             </div>
           )}
+
+          <div ref={bottomRef} />
         </div>
 
         {/* INPUT */}
@@ -381,20 +507,29 @@ export default function ChatPage() {
         <div className="inputWrap">
           <div className="inputBox">
             <input
+              placeholder="Ask Lumina AI..."
               value={input}
-              onChange={(e) => setInput(e.target.value)}
-              placeholder="Ask Lumina anything..."
+              onChange={(e) =>
+                setInput(e.target.value)
+              }
               onKeyDown={(e) =>
-                e.key === "Enter" && sendMessage()
+                e.key === "Enter" &&
+                sendMessage()
               }
             />
 
-            <div className="inputButtons">
-              <button onClick={startVoice}>
+            <div className="inputActions">
+              <button
+                className="iconBtn"
+                onClick={startVoice}
+              >
                 <Mic size={18} />
               </button>
 
-              <button className="sendBtn" onClick={sendMessage}>
+              <button
+                className="sendBtn"
+                onClick={sendMessage}
+              >
                 <Send size={18} />
               </button>
             </div>
@@ -402,40 +537,81 @@ export default function ChatPage() {
         </div>
       </section>
 
-      {/* ACCOUNT */}
+      {/* SETTINGS */}
 
-      {accountOpen && (
+      {settingsOpen && (
         <div className="overlay">
-          <div className="accountPanel">
+          <div className="panel">
             <div className="panelTop">
-              <h2>Account</h2>
+              <h2>Settings</h2>
 
               <button
-                onClick={() => setAccountOpen(false)}
+                onClick={() =>
+                  setSettingsOpen(false)
+                }
               >
                 <X size={18} />
               </button>
             </div>
 
-            <div className="userInfo">
+            <div className="settingRow">
+              <div>
+                <h3>Glow Effects</h3>
+
+                <p>
+                  Toggle futuristic effects
+                </p>
+              </div>
+
+              <button
+                className={`toggle ${
+                  themeGlow
+                    ? "toggleOn"
+                    : ""
+                }`}
+                onClick={() =>
+                  setThemeGlow(!themeGlow)
+                }
+              >
+                <div />
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ACCOUNT */}
+
+      {accountOpen && (
+        <div className="overlay">
+          <div className="panel">
+            <div className="panelTop">
+              <h2>Account</h2>
+
+              <button
+                onClick={() =>
+                  setAccountOpen(false)
+                }
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="profile">
               <div className="avatar">
                 {user?.email?.charAt(0)}
               </div>
 
               <div>
                 <h3>{user?.email}</h3>
-                <p>Logged in</p>
+
+                <p>Premium User</p>
               </div>
             </div>
 
             <button className="panelBtn">
-              <Settings size={18} />
-              Settings
-            </button>
-
-            <button className="panelBtn">
               <Crown size={18} />
-              Lumina Premium
+              Upgrade Plan
             </button>
 
             <button
@@ -459,8 +635,8 @@ export default function ChatPage() {
 
       {/* VOICE */}
 
-      {voiceMode && (
-        <div className="voicePopup">
+      {voiceOpen && (
+        <div className="voiceOverlay">
           <div className="voiceOrb" />
 
           <h2>Listening...</h2>
@@ -469,7 +645,11 @@ export default function ChatPage() {
 
       {/* POPUP */}
 
-      {popup && <div className="popup">{popup}</div>}
+      {popup && (
+        <div className="popup">
+          {popup}
+        </div>
+      )}
 
       <style jsx global>{`
         * {
@@ -482,24 +662,64 @@ export default function ChatPage() {
           background: #000;
           color: white;
           font-family: Inter, sans-serif;
+          overflow: hidden;
         }
 
         .app {
           display: flex;
           height: 100vh;
+          position: relative;
+          overflow: hidden;
           background: #000;
         }
 
+        .bgText {
+          position: absolute;
+          top: 50%;
+          left: 50%;
+          transform: translate(-50%, -50%);
+          font-size: 220px;
+          font-weight: 900;
+          opacity: 0.03;
+          pointer-events: none;
+          letter-spacing: 20px;
+        }
+
+        .glow {
+          position: absolute;
+          border-radius: 50%;
+          filter: blur(120px);
+          z-index: 0;
+        }
+
+        .glow1 {
+          width: 400px;
+          height: 400px;
+          background: #222;
+          top: -100px;
+          left: -100px;
+        }
+
+        .glow2 {
+          width: 300px;
+          height: 300px;
+          background: #111;
+          right: -100px;
+          bottom: -100px;
+        }
+
         .sidebar {
-          width: 280px;
-          background: #090909;
-          border-right: 1px solid #161616;
+          width: 290px;
+          background: rgba(10, 10, 10, 0.85);
+          backdrop-filter: blur(20px);
+          border-right: 1px solid #171717;
           display: flex;
           flex-direction: column;
           padding: 18px;
+          z-index: 10;
         }
 
-        .sidebarTop {
+        .sideTop {
           display: flex;
           justify-content: space-between;
           align-items: center;
@@ -508,8 +728,8 @@ export default function ChatPage() {
         .logo {
           display: flex;
           align-items: center;
-          gap: 8px;
-          font-size: 20px;
+          gap: 10px;
+          font-size: 21px;
           font-weight: 700;
         }
 
@@ -518,31 +738,35 @@ export default function ChatPage() {
         }
 
         .newChatBtn {
-          margin-top: 24px;
-          height: 52px;
+          height: 56px;
           border-radius: 18px;
           border: none;
           background: white;
           color: black;
-          font-size: 15px;
-          font-weight: 600;
+          font-weight: 700;
+          margin-top: 22px;
           display: flex;
           align-items: center;
           justify-content: center;
           gap: 10px;
           cursor: pointer;
+          transition: 0.25s;
+        }
+
+        .newChatBtn:hover {
+          transform: scale(1.02);
         }
 
         .searchBox {
-          margin-top: 18px;
-          height: 48px;
+          height: 50px;
           border-radius: 16px;
-          background: #111;
-          border: 1px solid #1d1d1d;
+          background: #101010;
+          border: 1px solid #1c1c1c;
           display: flex;
           align-items: center;
-          padding: 0 14px;
           gap: 10px;
+          padding: 0 14px;
+          margin-top: 18px;
         }
 
         .searchBox input {
@@ -553,43 +777,50 @@ export default function ChatPage() {
           width: 100%;
         }
 
-        .chatHistory {
+        .history {
           flex: 1;
-          margin-top: 20px;
           overflow-y: auto;
+          margin-top: 20px;
+        }
+
+        .emptyHistory {
+          color: #666;
+          text-align: center;
+          margin-top: 40px;
         }
 
         .historyItem {
           width: 100%;
-          min-height: 50px;
-          border-radius: 16px;
+          height: 52px;
           border: none;
+          border-radius: 16px;
           background: transparent;
           color: #ddd;
           display: flex;
           align-items: center;
           gap: 12px;
-          padding: 0 14px;
+          padding: 0 16px;
           margin-bottom: 10px;
           cursor: pointer;
-          text-align: left;
+          transition: 0.25s;
         }
 
         .historyItem:hover,
         .historyItem.active {
-          background: #141414;
+          background: #151515;
         }
 
-        .bottomSidebar {
-          margin-top: 20px;
+        .bottomMenu {
+          display: flex;
+          flex-direction: column;
+          gap: 10px;
         }
 
-        .accountBtn {
-          width: 100%;
-          height: 52px;
+        .bottomBtn {
+          height: 50px;
           border-radius: 16px;
           border: none;
-          background: #141414;
+          background: #111;
           color: white;
           display: flex;
           align-items: center;
@@ -602,21 +833,28 @@ export default function ChatPage() {
           flex: 1;
           display: flex;
           flex-direction: column;
+          position: relative;
+          z-index: 2;
         }
 
         .topbar {
-          height: 70px;
+          height: 72px;
           border-bottom: 1px solid #111;
           display: flex;
           align-items: center;
           justify-content: space-between;
           padding: 0 20px;
+          backdrop-filter: blur(10px);
         }
 
-        .menuBtn,
+        .brand {
+          font-size: 24px;
+          font-weight: 800;
+        }
+
+        .iconBtn,
         .premiumBtn,
         .actions button,
-        .inputButtons button,
         .panelTop button {
           width: 42px;
           height: 42px;
@@ -627,52 +865,87 @@ export default function ChatPage() {
           cursor: pointer;
         }
 
-        .topTitle {
-          font-size: 22px;
-          font-weight: 700;
+        .hero {
+          padding: 60px 30px 20px;
+          animation: fade 0.5s ease;
+        }
+
+        .hero h1 {
+          font-size: 48px;
+          font-weight: 800;
+        }
+
+        .hero p {
+          margin-top: 14px;
+          color: #999;
+          font-size: 18px;
+        }
+
+        .heroCards {
+          display: grid;
+          grid-template-columns: repeat(2, 1fr);
+          gap: 14px;
+          margin-top: 30px;
+          max-width: 800px;
+        }
+
+        .heroCard {
+          background: rgba(18, 18, 18, 0.8);
+          border: 1px solid #1c1c1c;
+          border-radius: 22px;
+          padding: 24px;
+          font-size: 17px;
+          transition: 0.25s;
+        }
+
+        .heroCard:hover {
+          transform: translateY(-4px);
+          border-color: #444;
         }
 
         .chatArea {
           flex: 1;
           overflow-y: auto;
-          padding: 30px;
+          padding: 20px 30px 120px;
         }
 
-        .message {
-          max-width: 760px;
-          padding: 18px;
-          border-radius: 22px;
+        .msg {
+          max-width: 780px;
+          padding: 20px;
+          border-radius: 24px;
           margin-bottom: 18px;
+          animation: fade 0.25s ease;
         }
 
-        .message.ai {
-          background: #0f0f0f;
+        .msg.ai {
+          background: rgba(12, 12, 12, 0.9);
           border: 1px solid #1a1a1a;
         }
 
-        .message.user {
+        .msg.user {
+          margin-left: auto;
           background: white;
           color: black;
-          margin-left: auto;
         }
 
         .msgText {
-          line-height: 1.6;
+          line-height: 1.7;
+          font-size: 16px;
         }
 
         .actions {
           display: flex;
           gap: 10px;
-          margin-top: 14px;
+          margin-top: 16px;
         }
 
         .typing {
           display: flex;
           gap: 8px;
-          padding: 20px;
+          padding: 10px 0;
         }
 
-        .dot {
+        .typing span {
           width: 10px;
           height: 10px;
           border-radius: 50%;
@@ -681,17 +954,25 @@ export default function ChatPage() {
         }
 
         .inputWrap {
+          position: absolute;
+          bottom: 0;
+          left: 0;
+          right: 0;
           padding: 18px;
+          backdrop-filter: blur(18px);
+          background: rgba(0, 0, 0, 0.6);
         }
 
         .inputBox {
-          background: #0f0f0f;
-          border: 1px solid #1c1c1c;
-          border-radius: 26px;
-          min-height: 74px;
+          max-width: 950px;
+          margin: auto;
+          height: 72px;
+          background: rgba(12, 12, 12, 0.9);
+          border: 1px solid #1d1d1d;
+          border-radius: 28px;
           display: flex;
           align-items: center;
-          padding: 0 18px;
+          padding: 0 16px 0 24px;
         }
 
         .inputBox input {
@@ -700,35 +981,41 @@ export default function ChatPage() {
           border: none;
           outline: none;
           color: white;
-          font-size: 16px;
+          font-size: 17px;
         }
 
-        .inputButtons {
+        .inputActions {
           display: flex;
           gap: 10px;
         }
 
         .sendBtn {
-          background: white !important;
-          color: black !important;
+          width: 48px;
+          height: 48px;
+          border-radius: 50%;
+          border: none;
+          background: white;
+          color: black;
+          cursor: pointer;
         }
 
         .overlay {
           position: fixed;
           inset: 0;
-          background: rgba(0,0,0,.7);
+          background: rgba(0, 0, 0, 0.7);
           display: flex;
           align-items: center;
           justify-content: center;
           z-index: 100;
         }
 
-        .accountPanel {
-          width: 400px;
-          background: #090909;
+        .panel {
+          width: 420px;
+          background: #0b0b0b;
           border: 1px solid #1d1d1d;
           border-radius: 28px;
           padding: 24px;
+          animation: fade 0.2s ease;
         }
 
         .panelTop {
@@ -737,43 +1024,75 @@ export default function ChatPage() {
           align-items: center;
         }
 
-        .userInfo {
-          margin-top: 24px;
+        .settingRow {
+          margin-top: 26px;
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+        }
+
+        .toggle {
+          width: 58px;
+          height: 32px;
+          border-radius: 999px;
+          border: none;
+          background: #222;
+          position: relative;
+          cursor: pointer;
+        }
+
+        .toggle div {
+          width: 24px;
+          height: 24px;
+          background: white;
+          border-radius: 50%;
+          position: absolute;
+          top: 4px;
+          left: 4px;
+          transition: 0.25s;
+        }
+
+        .toggleOn div {
+          left: 30px;
+        }
+
+        .profile {
           display: flex;
           align-items: center;
           gap: 16px;
+          margin-top: 24px;
         }
 
         .avatar {
-          width: 62px;
-          height: 62px;
+          width: 68px;
+          height: 68px;
           border-radius: 50%;
           background: white;
           color: black;
           display: flex;
           align-items: center;
           justify-content: center;
-          font-size: 24px;
+          font-size: 26px;
           font-weight: 700;
         }
 
         .panelBtn {
           width: 100%;
-          height: 54px;
-          border-radius: 16px;
+          height: 56px;
+          border-radius: 18px;
           border: none;
           background: #111;
           color: white;
           display: flex;
           align-items: center;
           gap: 12px;
-          padding: 0 16px;
-          margin-top: 14px;
+          padding: 0 18px;
+          margin-top: 16px;
           cursor: pointer;
         }
 
         .danger {
-          background: #240909;
+          background: #220808;
         }
 
         .logout {
@@ -784,42 +1103,48 @@ export default function ChatPage() {
 
         .popup {
           position: fixed;
-          bottom: 24px;
+          bottom: 30px;
           left: 50%;
           transform: translateX(-50%);
           background: white;
           color: black;
           padding: 14px 22px;
           border-radius: 999px;
-          font-weight: 600;
+          font-weight: 700;
           z-index: 200;
+          animation: fade 0.2s ease;
         }
 
-        .voicePopup {
+        .voiceOverlay {
           position: fixed;
           inset: 0;
-          background: rgba(0,0,0,.82);
+          background: rgba(0, 0, 0, 0.84);
           display: flex;
           flex-direction: column;
           align-items: center;
           justify-content: center;
-          z-index: 200;
+          z-index: 120;
         }
 
         .voiceOrb {
-          width: 170px;
-          height: 170px;
+          width: 190px;
+          height: 190px;
           border-radius: 50%;
-          background: radial-gradient(circle, white, #333);
-          animation: pulse 1.4s infinite;
+          background: radial-gradient(
+            circle,
+            #fff,
+            #444
+          );
+          animation: pulse 1.2s infinite;
         }
 
-        .voicePopup h2 {
-          margin-top: 24px;
-          font-size: 28px;
+        .voiceOverlay h2 {
+          margin-top: 26px;
+          font-size: 34px;
         }
 
-        .loadingScreen {
+        .loaderScreen {
+          width: 100%;
           height: 100vh;
           background: black;
           display: flex;
@@ -827,13 +1152,19 @@ export default function ChatPage() {
           justify-content: center;
         }
 
-        .loader {
-          width: 70px;
-          height: 70px;
+        .loaderOrb {
+          width: 90px;
+          height: 90px;
           border-radius: 50%;
-          border: 5px solid #222;
-          border-top: 5px solid white;
+          border: 6px solid #222;
+          border-top: 6px solid white;
           animation: spin 1s linear infinite;
+        }
+
+        @keyframes pulse {
+          50% {
+            transform: scale(1.1);
+          }
         }
 
         @keyframes spin {
@@ -842,23 +1173,21 @@ export default function ChatPage() {
           }
         }
 
-        @keyframes pulse {
-          0% {
-            transform: scale(1);
-          }
-
-          50% {
-            transform: scale(1.1);
-          }
-
-          100% {
-            transform: scale(1);
-          }
-        }
-
         @keyframes bounce {
           50% {
             transform: translateY(-8px);
+          }
+        }
+
+        @keyframes fade {
+          from {
+            opacity: 0;
+            transform: translateY(10px);
+          }
+
+          to {
+            opacity: 1;
+            transform: translateY(0);
           }
         }
 
@@ -884,20 +1213,36 @@ export default function ChatPage() {
             height: 38px;
             border-radius: 50%;
             border: none;
-            background: #151515;
+            background: #111;
             color: white;
           }
 
-          .chatArea {
-            padding: 16px;
+          .hero {
+            padding: 40px 20px 10px;
           }
 
-          .message {
+          .hero h1 {
+            font-size: 34px;
+          }
+
+          .heroCards {
+            grid-template-columns: 1fr;
+          }
+
+          .chatArea {
+            padding: 18px 18px 120px;
+          }
+
+          .msg {
             max-width: 100%;
           }
 
-          .accountPanel {
+          .panel {
             width: calc(100% - 20px);
+          }
+
+          .bgText {
+            font-size: 110px;
           }
         }
       `}</style>
