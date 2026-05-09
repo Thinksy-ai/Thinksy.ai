@@ -29,6 +29,9 @@ import {
   LogOut,
   Image as ImageIcon,
   Pin,
+  Crown,
+  User,
+  Shield,
   ChevronRight,
 } from "lucide-react";
 
@@ -55,6 +58,8 @@ export default function ChatPage() {
 
   const [sidebarOpen, setSidebarOpen] = useState(true);
 
+  const [mobileSidebar, setMobileSidebar] = useState(false);
+
   const [voiceOpen, setVoiceOpen] = useState(false);
 
   const [typing, setTyping] = useState(false);
@@ -63,31 +68,31 @@ export default function ChatPage() {
 
   const [input, setInput] = useState("");
 
-  const [activeChatId, setActiveChatId] =
-    useState<number>(1);
+  const [popup, setPopup] = useState("");
 
-  const [showMobileSidebar, setShowMobileSidebar] =
-    useState(false);
+  const [accountOpen, setAccountOpen] = useState(false);
+
+  const [premiumOpen, setPremiumOpen] = useState(false);
+
+  const [activeChatId, setActiveChatId] = useState(1);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const chatEndRef = useRef<HTMLDivElement>(null);
 
-  const [uploadedImages, setUploadedImages] = useState<
-    string[]
-  >([]);
+  const [uploadedImages, setUploadedImages] = useState<string[]>([]);
 
   const [chats, setChats] = useState<Chat[]>([
     {
       id: 1,
-      title: "New Chat",
+      title: "Lumina AI",
       pinned: true,
       messages: [
         {
           id: 1,
           role: "assistant",
           text:
-            "Welcome to Lumina AI. Ask anything.",
+            "Welcome to Lumina AI Ultra. Ask anything and explore the future.",
         },
       ],
     },
@@ -96,8 +101,7 @@ export default function ChatPage() {
   useEffect(() => {
     setMounted(true);
 
-    const auth =
-      localStorage.getItem("lumina-auth");
+    const auth = localStorage.getItem("lumina-auth");
 
     if (!auth) {
       router.push("/login");
@@ -110,15 +114,20 @@ export default function ChatPage() {
     });
   }, [chats, typing]);
 
+  function showPopup(text: string) {
+    setPopup(text);
+
+    setTimeout(() => {
+      setPopup("");
+    }, 2400);
+  }
+
   const activeChat =
-    chats.find((c) => c.id === activeChatId) ||
-    chats[0];
+    chats.find((c) => c.id === activeChatId) || chats[0];
 
   const filteredChats = useMemo(() => {
     return chats.filter((chat) =>
-      chat.title
-        .toLowerCase()
-        .includes(search.toLowerCase())
+      chat.title.toLowerCase().includes(search.toLowerCase())
     );
   }, [search, chats]);
 
@@ -130,8 +139,7 @@ export default function ChatPage() {
         {
           id: Date.now(),
           role: "assistant",
-          text:
-            "Fresh Lumina AI chat created.",
+          text: "New Lumina AI conversation started.",
         },
       ],
     };
@@ -140,23 +148,25 @@ export default function ChatPage() {
 
     setActiveChatId(newChat.id);
 
-    setShowMobileSidebar(false);
+    setMobileSidebar(false);
+
+    showPopup("Fresh chat created");
   }
 
   function deleteChat(id: number) {
-    const updated = chats.filter(
-      (chat) => chat.id !== id
-    );
+    const updated = chats.filter((chat) => chat.id !== id);
 
     setChats(updated);
 
-    if (activeChatId === id && updated.length) {
+    if (updated.length > 0) {
       setActiveChatId(updated[0].id);
     }
+
+    showPopup("Chat deleted");
   }
 
   function renameChat(id: number) {
-    const value = prompt("Rename chat");
+    const value = prompt("Rename your chat");
 
     if (!value) return;
 
@@ -170,6 +180,8 @@ export default function ChatPage() {
           : chat
       )
     );
+
+    showPopup("Chat renamed");
   }
 
   function pinChat(id: number) {
@@ -183,6 +195,8 @@ export default function ChatPage() {
           : chat
       )
     );
+
+    showPopup("Chat updated");
   }
 
   async function sendMessage() {
@@ -196,20 +210,20 @@ export default function ChatPage() {
       text,
     };
 
-    const updatedChats = chats.map((chat) => {
+    const updated = chats.map((chat) => {
       if (chat.id !== activeChatId) return chat;
 
       return {
         ...chat,
         title:
           chat.title === "Untitled Chat"
-            ? text.slice(0, 24)
+            ? text.slice(0, 22)
             : chat.title,
         messages: [...chat.messages, userMessage],
       };
     });
 
-    setChats(updatedChats);
+    setChats(updated);
 
     setInput("");
 
@@ -219,8 +233,7 @@ export default function ChatPage() {
       const res = await fetch("/api/chat", {
         method: "POST",
         headers: {
-          "Content-Type":
-            "application/json",
+          "Content-Type": "application/json",
         },
         body: JSON.stringify({
           message: text,
@@ -234,7 +247,7 @@ export default function ChatPage() {
         role: "assistant",
         text:
           data.reply ||
-          "Lumina AI unavailable.",
+          "Lumina AI temporarily unavailable.",
       };
 
       setChats((prev) =>
@@ -242,10 +255,7 @@ export default function ChatPage() {
           chat.id === activeChatId
             ? {
                 ...chat,
-                messages: [
-                  ...chat.messages,
-                  aiMessage,
-                ],
+                messages: [...chat.messages, aiMessage],
               }
             : chat
         )
@@ -255,7 +265,7 @@ export default function ChatPage() {
         id: Date.now() + 1,
         role: "assistant",
         text:
-          "AI temporarily unavailable.",
+          "AI temporarily unavailable. Check API key.",
       };
 
       setChats((prev) =>
@@ -263,10 +273,7 @@ export default function ChatPage() {
           chat.id === activeChatId
             ? {
                 ...chat,
-                messages: [
-                  ...chat.messages,
-                  aiMessage,
-                ],
+                messages: [...chat.messages, aiMessage],
               }
             : chat
         )
@@ -276,25 +283,7 @@ export default function ChatPage() {
     setTyping(false);
   }
 
-  function copyMessage(text: string) {
-    navigator.clipboard.writeText(text);
-  }
-
-  function speakMessage(text: string) {
-    const speech =
-      new SpeechSynthesisUtterance(text);
-
-    speech.rate = 1;
-
-    speech.pitch = 1;
-
-    window.speechSynthesis.speak(speech);
-  }
-
-  function reactMessage(
-    id: number,
-    value: boolean
-  ) {
+  function reactMessage(id: number, value: boolean) {
     setChats((prev) =>
       prev.map((chat) => ({
         ...chat,
@@ -308,6 +297,22 @@ export default function ChatPage() {
         ),
       }))
     );
+
+    showPopup("Thank you for the feedback");
+  }
+
+  function copyMessage(text: string) {
+    navigator.clipboard.writeText(text);
+
+    showPopup("Copied to clipboard");
+  }
+
+  function speakMessage(text: string) {
+    const speech = new SpeechSynthesisUtterance(text);
+
+    window.speechSynthesis.speak(speech);
+
+    showPopup("Voice playback started");
   }
 
   function uploadImage(
@@ -324,36 +329,36 @@ export default function ChatPage() {
         String(reader.result),
         ...prev,
       ]);
+
+      showPopup("Image uploaded");
     };
 
     reader.readAsDataURL(file);
   }
 
   async function startVoiceInput() {
-    // @ts-ignore
     const SpeechRecognition =
-      window.SpeechRecognition ||
-      window.webkitSpeechRecognition;
+      (window as any).SpeechRecognition ||
+      (window as any).webkitSpeechRecognition;
 
     if (!SpeechRecognition) {
-      alert(
-        "Speech recognition unsupported."
-      );
+      showPopup("Voice unsupported");
+
       return;
     }
 
-    const recognition =
-      new SpeechRecognition();
+    const recognition = new SpeechRecognition();
 
     recognition.lang = "en-US";
 
     recognition.start();
 
     recognition.onresult = (e: any) => {
-      const transcript =
-        e.results[0][0].transcript;
+      const transcript = e.results[0][0].transcript;
 
       setInput(transcript);
+
+      showPopup("Voice captured");
     };
   }
 
@@ -367,13 +372,14 @@ export default function ChatPage() {
 
   return (
     <main className="lumina">
+      {/* POPUP */}
+      {popup && <div className="popup">{popup}</div>}
+
       {/* MOBILE OVERLAY */}
-      {showMobileSidebar && (
+      {mobileSidebar && (
         <div
           className="overlay"
-          onClick={() =>
-            setShowMobileSidebar(false)
-          }
+          onClick={() => setMobileSidebar(false)}
         />
       )}
 
@@ -381,23 +387,17 @@ export default function ChatPage() {
       <aside
         className={`sidebar ${
           sidebarOpen ? "" : "collapsed"
-        } ${
-          showMobileSidebar ? "mobileShow" : ""
-        }`}
+        } ${mobileSidebar ? "mobileShow" : ""}`}
       >
         <div className="sidebarTop">
           <div className="logo">
             <Sparkles size={18} />
-            {sidebarOpen && (
-              <span>Lumina AI</span>
-            )}
+            {sidebarOpen && <span>Lumina AI</span>}
           </div>
 
           <button
             className="iconBtn"
-            onClick={() =>
-              setSidebarOpen(!sidebarOpen)
-            }
+            onClick={() => setSidebarOpen(!sidebarOpen)}
           >
             {sidebarOpen ? (
               <PanelLeftClose size={18} />
@@ -412,20 +412,17 @@ export default function ChatPage() {
           onClick={createNewChat}
         >
           <Plus size={18} />
-          {sidebarOpen && (
-            <span>New Chat</span>
-          )}
+          {sidebarOpen && <span>New Chat</span>}
         </button>
 
         {sidebarOpen && (
           <div className="searchBox">
             <Search size={16} />
+
             <input
               placeholder="Search chats"
               value={search}
-              onChange={(e) =>
-                setSearch(e.target.value)
-              }
+              onChange={(e) => setSearch(e.target.value)}
             />
           </div>
         )}
@@ -434,45 +431,35 @@ export default function ChatPage() {
           <Link href="/chat">
             <button className="navBtn active">
               <MessageSquare size={18} />
-              {sidebarOpen && (
-                <span>Chat</span>
-              )}
+              {sidebarOpen && <span>Chat</span>}
             </button>
           </Link>
 
           <Link href="/explore">
             <button className="navBtn">
               <Compass size={18} />
-              {sidebarOpen && (
-                <span>Explore</span>
-              )}
+              {sidebarOpen && <span>Explore</span>}
             </button>
           </Link>
 
           <Link href="/library">
             <button className="navBtn">
               <Library size={18} />
-              {sidebarOpen && (
-                <span>Library</span>
-              )}
+              {sidebarOpen && <span>Library</span>}
             </button>
           </Link>
 
           <Link href="/settings">
             <button className="navBtn">
               <Settings size={18} />
-              {sidebarOpen && (
-                <span>Settings</span>
-              )}
+              {sidebarOpen && <span>Settings</span>}
             </button>
           </Link>
         </div>
 
         {sidebarOpen && (
           <>
-            <div className="sectionLabel">
-              Chats
-            </div>
+            <div className="sectionLabel">Chats</div>
 
             <div className="chatList">
               {filteredChats.map((chat) => (
@@ -487,43 +474,29 @@ export default function ChatPage() {
                   <button
                     className="chatSelect"
                     onClick={() => {
-                      setActiveChatId(
-                        chat.id
-                      );
+                      setActiveChatId(chat.id);
 
-                      setShowMobileSidebar(
-                        false
-                      );
+                      setMobileSidebar(false);
                     }}
                   >
                     <MessageSquare size={15} />
 
-                    <span>
-                      {chat.title}
-                    </span>
+                    <span>{chat.title}</span>
                   </button>
 
                   <div className="chatActions">
-                    <button
-                      onClick={() =>
-                        pinChat(chat.id)
-                      }
-                    >
+                    <button onClick={() => pinChat(chat.id)}>
                       <Pin size={13} />
                     </button>
 
                     <button
-                      onClick={() =>
-                        renameChat(chat.id)
-                      }
+                      onClick={() => renameChat(chat.id)}
                     >
                       <Edit3 size={13} />
                     </button>
 
                     <button
-                      onClick={() =>
-                        deleteChat(chat.id)
-                      }
+                      onClick={() => deleteChat(chat.id)}
                     >
                       <Trash2 size={13} />
                     </button>
@@ -535,26 +508,26 @@ export default function ChatPage() {
         )}
 
         <button
-          className="logoutBtn"
-          onClick={logout}
+          className="accountBtn"
+          onClick={() => setAccountOpen(true)}
         >
+          <User size={18} />
+          {sidebarOpen && <span>Account</span>}
+        </button>
+
+        <button className="logoutBtn" onClick={logout}>
           <LogOut size={18} />
-          {sidebarOpen && (
-            <span>Logout</span>
-          )}
+          {sidebarOpen && <span>Logout</span>}
         </button>
       </aside>
 
       {/* MAIN */}
       <section className="mainPanel">
-        {/* TOPBAR */}
         <header className="topBar">
           <div className="topLeft">
             <button
               className="iconBtn mobileOnly"
-              onClick={() =>
-                setShowMobileSidebar(true)
-              }
+              onClick={() => setMobileSidebar(true)}
             >
               <Menu size={20} />
             </button>
@@ -567,9 +540,7 @@ export default function ChatPage() {
           <div className="topRight">
             <button
               className="iconBtn"
-              onClick={() =>
-                setVoiceOpen(true)
-              }
+              onClick={() => setVoiceOpen(true)}
             >
               <Mic size={18} />
             </button>
@@ -582,9 +553,7 @@ export default function ChatPage() {
             <div
               key={msg.id}
               className={`messageRow ${
-                msg.role === "user"
-                  ? "userRow"
-                  : ""
+                msg.role === "user" ? "userRow" : ""
               }`}
             >
               <div
@@ -598,59 +567,38 @@ export default function ChatPage() {
                   {msg.text}
                 </div>
 
-                {msg.role ===
-                  "assistant" && (
+                {msg.role === "assistant" && (
                   <div className="messageTools">
                     <button
-                      onClick={() =>
-                        copyMessage(
-                          msg.text
-                        )
-                      }
+                      onClick={() => copyMessage(msg.text)}
                     >
                       <Copy size={15} />
                     </button>
 
                     <button
-                      onClick={() =>
-                        speakMessage(
-                          msg.text
-                        )
-                      }
+                      onClick={() => speakMessage(msg.text)}
                     >
                       <Volume2 size={15} />
                     </button>
 
                     <button
                       onClick={() =>
-                        reactMessage(
-                          msg.id,
-                          true
-                        )
+                        reactMessage(msg.id, true)
                       }
                     >
-                      <ThumbsUp
-                        size={15}
-                      />
+                      <ThumbsUp size={15} />
                     </button>
 
                     <button
                       onClick={() =>
-                        reactMessage(
-                          msg.id,
-                          false
-                        )
+                        reactMessage(msg.id, false)
                       }
                     >
-                      <ThumbsDown
-                        size={15}
-                      />
+                      <ThumbsDown size={15} />
                     </button>
 
                     <button>
-                      <RotateCcw
-                        size={15}
-                      />
+                      <RotateCcw size={15} />
                     </button>
                   </div>
                 )}
@@ -661,11 +609,7 @@ export default function ChatPage() {
           {typing && (
             <div className="messageRow">
               <div className="bubble assistant">
-                <div className="typing">
-                  <span />
-                  <span />
-                  <span />
-                </div>
+                Thinking...
               </div>
             </div>
           )}
@@ -673,18 +617,12 @@ export default function ChatPage() {
           <div ref={chatEndRef} />
         </div>
 
-        {/* IMAGE PREVIEW */}
+        {/* UPLOADED IMAGES */}
         {uploadedImages.length > 0 && (
           <div className="imageStrip">
-            {uploadedImages.map(
-              (img, i) => (
-                <img
-                  key={i}
-                  src={img}
-                  alt=""
-                />
-              )
-            )}
+            {uploadedImages.map((img, i) => (
+              <img key={i} src={img} alt="" />
+            ))}
           </div>
         )}
 
@@ -694,14 +632,9 @@ export default function ChatPage() {
             <textarea
               placeholder="Message Lumina AI..."
               value={input}
-              onChange={(e) =>
-                setInput(e.target.value)
-              }
+              onChange={(e) => setInput(e.target.value)}
               onKeyDown={(e) => {
-                if (
-                  e.key === "Enter" &&
-                  !e.shiftKey
-                ) {
+                if (e.key === "Enter" && !e.shiftKey) {
                   e.preventDefault();
 
                   sendMessage();
@@ -725,19 +658,13 @@ export default function ChatPage() {
               </div>
 
               <div className="rightTools">
-                <button
-                  onClick={
-                    startVoiceInput
-                  }
-                >
+                <button onClick={startVoiceInput}>
                   <Mic size={18} />
                 </button>
 
                 <button
                   className="sendBtn"
-                  onClick={
-                    sendMessage
-                  }
+                  onClick={sendMessage}
                 >
                   <Send size={18} />
                 </button>
@@ -755,19 +682,15 @@ export default function ChatPage() {
         </div>
       </section>
 
-      {/* VOICE PANEL */}
+      {/* VOICE */}
       {voiceOpen && (
         <div className="voicePanel">
           <div className="voiceHeader">
-            <div>
-              Voice Conversation
-            </div>
+            <div>Voice Assistant</div>
 
             <button
               className="iconBtn"
-              onClick={() =>
-                setVoiceOpen(false)
-              }
+              onClick={() => setVoiceOpen(false)}
             >
               <X size={18} />
             </button>
@@ -782,11 +705,111 @@ export default function ChatPage() {
 
             <button
               className="voiceMic"
-              onClick={
-                startVoiceInput
-              }
+              onClick={startVoiceInput}
             >
-              <Mic size={26} />
+              <Mic size={24} />
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* ACCOUNT MENU */}
+      {accountOpen && (
+        <div className="accountModal">
+          <div className="accountCard">
+            <div className="accountTop">
+              <div>
+                <h2>Account</h2>
+
+                <p>Manage your Lumina AI profile</p>
+              </div>
+
+              <button
+                className="iconBtn"
+                onClick={() => setAccountOpen(false)}
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="accountMenu">
+              <button className="accountItem">
+                <User size={18} />
+
+                <div>
+                  <h4>Profile</h4>
+
+                  <p>Edit account details</p>
+                </div>
+
+                <ChevronRight size={16} />
+              </button>
+
+              <button className="accountItem">
+                <Shield size={18} />
+
+                <div>
+                  <h4>Privacy</h4>
+
+                  <p>Security and permissions</p>
+                </div>
+
+                <ChevronRight size={16} />
+              </button>
+
+              <button
+                className="accountItem premium"
+                onClick={() => setPremiumOpen(true)}
+              >
+                <Crown size={18} />
+
+                <div>
+                  <h4>Lumina Premium</h4>
+
+                  <p>Unlock Ultra features</p>
+                </div>
+
+                <ChevronRight size={16} />
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* PREMIUM */}
+      {premiumOpen && (
+        <div className="premiumModal">
+          <div className="premiumCard">
+            <div className="premiumGlow" />
+
+            <h1>Lumina Premium</h1>
+
+            <p>
+              Unlock advanced AI features and next-level
+              experiences.
+            </p>
+
+            <div className="premiumFeatures">
+              <div>✓ Faster AI responses</div>
+
+              <div>✓ Unlimited chats</div>
+
+              <div>✓ Ultra voice assistant</div>
+
+              <div>✓ Premium AI models</div>
+
+              <div>✓ Advanced image uploads</div>
+            </div>
+
+            <button className="upgradeBtn">
+              Upgrade Now
+            </button>
+
+            <button
+              className="closePremium"
+              onClick={() => setPremiumOpen(false)}
+            >
+              Maybe Later
             </button>
           </div>
         </div>
@@ -802,18 +825,8 @@ export default function ChatPage() {
         body {
           background: #000;
           color: white;
-          font-family:
-            Inter,
-            sans-serif;
+          font-family: Inter, sans-serif;
           overflow: hidden;
-        }
-
-        button,
-        input,
-        textarea {
-          font-family:
-            Inter,
-            sans-serif;
         }
 
         .lumina {
@@ -822,55 +835,61 @@ export default function ChatPage() {
           background: #000;
         }
 
+        .popup {
+          position: fixed;
+          top: 24px;
+          right: 24px;
+          background: #fff;
+          color: #000;
+          padding: 14px 20px;
+          border-radius: 16px;
+          z-index: 999;
+          font-weight: 600;
+        }
+
         .overlay {
           position: fixed;
           inset: 0;
-          background: rgba(
-            0,
-            0,
-            0,
-            0.5
-          );
-          z-index: 40;
+          background: rgba(0, 0, 0, 0.5);
+          z-index: 50;
         }
 
         .sidebar {
           width: 300px;
           background: #090909;
-          border-right: 1px solid #151515;
+          border-right: 1px solid #181818;
           padding: 14px;
           display: flex;
           flex-direction: column;
           transition: 0.25s;
-          z-index: 50;
+          z-index: 60;
         }
 
-        .sidebar.collapsed {
+        .collapsed {
           width: 82px;
         }
 
         .sidebarTop {
           display: flex;
+          justify-content: space-between;
           align-items: center;
-          justify-content:
-            space-between;
           margin-bottom: 18px;
         }
 
         .logo {
           display: flex;
-          gap: 10px;
           align-items: center;
-          font-weight: 700;
+          gap: 10px;
           font-size: 20px;
+          font-weight: 700;
         }
 
         .iconBtn {
           width: 42px;
           height: 42px;
-          border: none;
           border-radius: 14px;
-          background: #121212;
+          border: none;
+          background: #111;
           color: white;
           display: flex;
           align-items: center;
@@ -880,7 +899,8 @@ export default function ChatPage() {
 
         .newChatBtn,
         .navBtn,
-        .logoutBtn {
+        .logoutBtn,
+        .accountBtn {
           width: 100%;
           height: 50px;
           border: none;
@@ -889,9 +909,9 @@ export default function ChatPage() {
           align-items: center;
           gap: 12px;
           padding: 0 16px;
-          cursor: pointer;
           background: transparent;
           color: white;
+          cursor: pointer;
           margin-bottom: 8px;
         }
 
@@ -911,14 +931,14 @@ export default function ChatPage() {
         }
 
         .searchBox {
-          margin: 14px 0;
           height: 48px;
           background: #111;
           border-radius: 16px;
           display: flex;
           align-items: center;
-          padding: 0 14px;
           gap: 10px;
+          padding: 0 14px;
+          margin: 14px 0;
         }
 
         .searchBox input {
@@ -930,9 +950,9 @@ export default function ChatPage() {
         }
 
         .sectionLabel {
-          color: #777;
+          color: #666;
           font-size: 13px;
-          margin: 16px 0 10px;
+          margin: 14px 0 10px;
         }
 
         .chatList {
@@ -941,27 +961,26 @@ export default function ChatPage() {
         }
 
         .chatItem {
-          border-radius: 14px;
+          border-radius: 16px;
           margin-bottom: 8px;
-          overflow: hidden;
         }
 
         .chatSelect {
           width: 100%;
-          background: transparent;
           border: none;
+          background: transparent;
           color: white;
+          padding: 12px;
           display: flex;
           align-items: center;
           gap: 10px;
-          padding: 12px;
           cursor: pointer;
         }
 
         .chatActions {
           display: flex;
-          padding: 0 12px 10px;
           gap: 6px;
+          padding: 0 12px 10px;
         }
 
         .chatActions button {
@@ -969,18 +988,13 @@ export default function ChatPage() {
           height: 30px;
           border-radius: 10px;
           border: none;
-          background: #161616;
+          background: #181818;
           color: white;
           cursor: pointer;
         }
 
         .selected {
-          background: #121212;
-        }
-
-        .logoutBtn {
-          margin-top: auto;
-          background: #101010;
+          background: #111;
         }
 
         .mainPanel {
@@ -991,12 +1005,11 @@ export default function ChatPage() {
 
         .topBar {
           height: 72px;
-          border-bottom: 1px solid #151515;
+          border-bottom: 1px solid #181818;
           display: flex;
+          justify-content: space-between;
           align-items: center;
-          justify-content:
-            space-between;
-          padding: 0 18px;
+          padding: 0 20px;
         }
 
         .topLeft,
@@ -1011,19 +1024,15 @@ export default function ChatPage() {
           font-weight: 700;
         }
 
-        .mobileOnly {
-          display: none;
-        }
-
         .chatArea {
           flex: 1;
           overflow-y: auto;
-          padding: 30px 22px;
+          padding: 24px;
         }
 
         .messageRow {
           display: flex;
-          margin-bottom: 22px;
+          margin-bottom: 20px;
         }
 
         .userRow {
@@ -1032,13 +1041,13 @@ export default function ChatPage() {
 
         .bubble {
           max-width: 760px;
-          border-radius: 24px;
           padding: 18px;
+          border-radius: 24px;
         }
 
         .assistant {
-          background: #0f0f0f;
-          border: 1px solid #181818;
+          background: #101010;
+          border: 1px solid #1b1b1b;
         }
 
         .user {
@@ -1062,31 +1071,9 @@ export default function ChatPage() {
           height: 36px;
           border-radius: 12px;
           border: none;
-          background: #161616;
+          background: #171717;
           color: white;
           cursor: pointer;
-        }
-
-        .typing {
-          display: flex;
-          gap: 6px;
-        }
-
-        .typing span {
-          width: 8px;
-          height: 8px;
-          border-radius: 50%;
-          background: white;
-          animation:
-            bounce 1s infinite;
-        }
-
-        .typing span:nth-child(2) {
-          animation-delay: 0.2s;
-        }
-
-        .typing span:nth-child(3) {
-          animation-delay: 0.4s;
         }
 
         .imageStrip {
@@ -1101,7 +1088,6 @@ export default function ChatPage() {
           height: 110px;
           object-fit: cover;
           border-radius: 18px;
-          border: 1px solid #222;
         }
 
         .inputWrap {
@@ -1117,9 +1103,8 @@ export default function ChatPage() {
 
         .inputBox textarea {
           width: 100%;
-          resize: none;
           min-height: 80px;
-          max-height: 180px;
+          resize: none;
           background: transparent;
           border: none;
           outline: none;
@@ -1128,11 +1113,9 @@ export default function ChatPage() {
         }
 
         .inputBottom {
-          margin-top: 12px;
           display: flex;
-          align-items: center;
-          justify-content:
-            space-between;
+          justify-content: space-between;
+          margin-top: 12px;
         }
 
         .leftTools,
@@ -1147,7 +1130,7 @@ export default function ChatPage() {
           height: 42px;
           border-radius: 14px;
           border: none;
-          background: #161616;
+          background: #171717;
           color: white;
           cursor: pointer;
         }
@@ -1157,28 +1140,36 @@ export default function ChatPage() {
           color: black !important;
         }
 
-        .voicePanel {
+        .voicePanel,
+        .accountModal,
+        .premiumModal {
           position: fixed;
-          width: 360px;
-          height: 520px;
-          right: 24px;
-          top: 90px;
-          border-radius: 32px;
-          background: #090909;
-          border: 1px solid #181818;
-          z-index: 80;
-          padding: 20px;
+          inset: 0;
+          background: rgba(0, 0, 0, 0.7);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          z-index: 120;
+        }
+
+        .voicePanel {
+          flex-direction: column;
         }
 
         .voiceHeader {
+          width: 360px;
           display: flex;
+          justify-content: space-between;
           align-items: center;
-          justify-content:
-            space-between;
+          margin-bottom: 20px;
         }
 
         .voiceCenter {
-          height: calc(100% - 60px);
+          width: 360px;
+          height: 480px;
+          background: #090909;
+          border: 1px solid #1a1a1a;
+          border-radius: 32px;
           display: flex;
           flex-direction: column;
           align-items: center;
@@ -1186,63 +1177,152 @@ export default function ChatPage() {
         }
 
         .orb {
-          width: 180px;
-          height: 180px;
+          width: 170px;
+          height: 170px;
           border-radius: 50%;
-          background:
-            radial-gradient(
-              circle,
-              #fff,
-              #444
-            );
-          animation:
-            pulse 2s infinite;
+          background: radial-gradient(circle, #fff, #444);
+          animation: pulse 2s infinite;
         }
 
         .voiceText {
-          margin-top: 26px;
+          margin-top: 20px;
           color: #aaa;
         }
 
         .voiceMic {
-          margin-top: 24px;
-          width: 72px;
-          height: 72px;
+          width: 70px;
+          height: 70px;
           border-radius: 50%;
           border: none;
           background: white;
           color: black;
+          margin-top: 24px;
+          cursor: pointer;
+        }
+
+        .accountCard,
+        .premiumCard {
+          width: 420px;
+          background: #090909;
+          border: 1px solid #1a1a1a;
+          border-radius: 32px;
+          padding: 26px;
+          position: relative;
+          overflow: hidden;
+        }
+
+        .accountTop {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          margin-bottom: 24px;
+        }
+
+        .accountTop p {
+          color: #777;
+          margin-top: 4px;
+        }
+
+        .accountMenu {
+          display: flex;
+          flex-direction: column;
+          gap: 14px;
+        }
+
+        .accountItem {
+          width: 100%;
+          border: none;
+          background: #111;
+          border-radius: 20px;
+          padding: 16px;
+          display: flex;
+          align-items: center;
+          gap: 14px;
+          color: white;
+          cursor: pointer;
+        }
+
+        .accountItem div {
+          flex: 1;
+          text-align: left;
+        }
+
+        .accountItem p {
+          color: #888;
+          margin-top: 4px;
+          font-size: 13px;
+        }
+
+        .premium {
+          background: linear-gradient(
+            135deg,
+            #171717,
+            #0c0c0c
+          );
+        }
+
+        .premiumGlow {
+          position: absolute;
+          width: 220px;
+          height: 220px;
+          background: rgba(255, 255, 255, 0.1);
+          border-radius: 50%;
+          top: -80px;
+          right: -80px;
+          filter: blur(60px);
+        }
+
+        .premiumCard h1 {
+          font-size: 38px;
+          margin-bottom: 10px;
+        }
+
+        .premiumCard p {
+          color: #999;
+          line-height: 1.6;
+        }
+
+        .premiumFeatures {
+          margin-top: 26px;
+          display: flex;
+          flex-direction: column;
+          gap: 14px;
+        }
+
+        .upgradeBtn {
+          width: 100%;
+          height: 56px;
+          border-radius: 18px;
+          border: none;
+          background: white;
+          color: black;
+          font-weight: 700;
+          margin-top: 30px;
+          cursor: pointer;
+        }
+
+        .closePremium {
+          width: 100%;
+          height: 52px;
+          border-radius: 18px;
+          border: none;
+          background: #141414;
+          color: white;
+          margin-top: 14px;
           cursor: pointer;
         }
 
         @keyframes pulse {
           0% {
             transform: scale(1);
-            opacity: 0.7;
           }
 
           50% {
             transform: scale(1.08);
-            opacity: 1;
           }
 
           100% {
             transform: scale(1);
-            opacity: 0.7;
-          }
-        }
-
-        @keyframes bounce {
-          0%,
-          80%,
-          100% {
-            transform: scale(0.8);
-            opacity: 0.5;
-          }
-
-          40% {
-            transform: scale(1);
-            opacity: 1;
           }
         }
 
@@ -1266,23 +1346,18 @@ export default function ChatPage() {
             max-width: 100%;
           }
 
-          .voicePanel {
-            width: calc(100% - 24px);
-            right: 12px;
-            left: 12px;
-            top: 80px;
-          }
-
           .chatArea {
-            padding: 20px 14px;
+            padding: 18px 14px;
           }
 
           .inputWrap {
             padding: 12px;
           }
 
-          .chatTitle {
-            font-size: 17px;
+          .voiceCenter,
+          .accountCard,
+          .premiumCard {
+            width: calc(100% - 20px);
           }
         }
       `}</style>
