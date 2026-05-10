@@ -777,28 +777,30 @@ export default function LuminaUltra() {
           box-sizing: border-box;
         }
 
-        html,
-        body {
-          width: 100%;
-          height: 100%;
-          background: #000;
-          overflow: hidden;
-          font-family: Inter,
-            sans-serif;
-        }
+    html,
+  body {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: #000;
+}
 
-        body {
-          color: white;
-        }
+body {
+  color: white;
+  font-family: Inter, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
 
-        .app {
-          width: 100%;
-          height: 100vh;
-          display: flex;
-          background: black;
-          overflow: hidden;
-          position: relative;
-        }
+.app {
+  display: flex;
+  width: 100%;
+  height: 100dvh;
+  min-height: 100dvh;
+  position: relative;
+  background: #000;
+  overflow: hidden;
+}
 
         .bgText {
           position: absolute;
