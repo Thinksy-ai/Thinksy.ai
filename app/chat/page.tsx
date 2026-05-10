@@ -4,19 +4,19 @@ import { useEffect, useRef, useState } from "react";
 
 import {
   Menu,
-  Plus,
   Send,
-  Search,
   Mic,
+  Plus,
+  Search,
   Sparkles,
   MessageSquare,
+  Trash2,
   Copy,
   ThumbsUp,
   ThumbsDown,
   Settings,
   User,
   X,
-  Trash2,
   Crown,
   PanelLeftClose,
 } from "lucide-react";
@@ -86,7 +86,7 @@ export default function ChatPage() {
 
     setTimeout(() => {
       setPopup("");
-    }, 2200);
+    }, 2000);
   }
 
   function createChat() {
@@ -101,6 +101,8 @@ export default function ChatPage() {
     setChatIndex(0);
 
     setSidebar(false);
+
+    toast("New chat created");
   }
 
   function deleteChat(index: number) {
@@ -190,7 +192,7 @@ export default function ChatPage() {
           id: Date.now() + 2,
           role: "assistant",
           text:
-            "Connection failed.",
+            "AI temporarily unavailable.",
         }
       );
 
@@ -268,9 +270,11 @@ export default function ChatPage() {
       {/* SIDEBAR */}
 
       <aside
-        className={`sidebar ${
-          sidebar ? "show" : ""
-        }`}
+        className={
+          sidebar
+            ? "sidebar show"
+            : "sidebar"
+        }
       >
         <div className="sidebarTop">
           <div className="logo">
@@ -410,12 +414,12 @@ export default function ChatPage() {
 
         <header className="topbar">
           <button
-            className="iconBtn"
+            className="menuButton"
             onClick={() =>
               setSidebar(true)
             }
           >
-            <Menu size={18} />
+            <Menu size={22} />
           </button>
 
           <div className="topTitle">
@@ -437,25 +441,25 @@ export default function ChatPage() {
             </h1>
 
             <p>
-              Chat • Coding • AI •
+              AI • Coding • Chat •
               Writing • Research
             </p>
 
             <div className="heroGrid">
               <div className="heroCard">
-                Build Websites
+                Build websites
               </div>
 
               <div className="heroCard">
-                Explain Science
+                Generate code
               </div>
 
               <div className="heroCard">
-                Generate Code
+                Explain science
               </div>
 
               <div className="heroCard">
-                Creative Writing
+                Creative writing
               </div>
             </div>
           </div>
@@ -591,7 +595,7 @@ export default function ChatPage() {
             </div>
 
             <button className="modalBtn">
-              Theme Settings
+              Theme
             </button>
 
             <button className="modalBtn">
@@ -682,6 +686,7 @@ export default function ChatPage() {
           width: 290px;
           height: 100vh;
           background: #0b0b0b;
+
           border-right: 1px solid
             #161616;
 
@@ -692,9 +697,10 @@ export default function ChatPage() {
 
           flex-shrink: 0;
 
-          z-index: 100;
+          z-index: 500;
 
-          transition: 0.3s ease;
+          transition: transform
+            0.3s ease;
         }
 
         .sidebarTop {
@@ -714,9 +720,13 @@ export default function ChatPage() {
         .iconBtn {
           width: 42px;
           height: 42px;
+
           border-radius: 50%;
+
           border: none;
+
           background: #111;
+
           color: white;
 
           display: flex;
@@ -763,15 +773,21 @@ export default function ChatPage() {
 
         .searchBox input {
           flex: 1;
+
           background: transparent;
+
           border: none;
+
           outline: none;
+
           color: white;
         }
 
         .chatHistory {
           flex: 1;
+
           overflow-y: auto;
+
           margin-top: 16px;
         }
 
@@ -858,7 +874,13 @@ export default function ChatPage() {
         }
 
         .topbar {
-          height: 72px;
+          height: 78px;
+
+          padding:
+            env(safe-area-inset-top)
+            16px
+            0
+            16px;
 
           border-bottom: 1px solid
             #161616;
@@ -869,9 +891,41 @@ export default function ChatPage() {
 
           justify-content: space-between;
 
-          padding: 0 18px;
+          background: rgba(
+            0,
+            0,
+            0,
+            0.92
+          );
+
+          backdrop-filter: blur(
+            20px
+          );
+
+          position: sticky;
+
+          top: 0;
+
+          z-index: 120;
 
           flex-shrink: 0;
+        }
+
+        .menuButton {
+          width: 46px;
+          height: 46px;
+
+          border-radius: 14px;
+
+          border: 1px solid #222;
+
+          background: #111;
+
+          color: white;
+
+          display: flex;
+          align-items: center;
+          justify-content: center;
         }
 
         .topTitle {
@@ -906,7 +960,7 @@ export default function ChatPage() {
         }
 
         .hero h1 {
-          font-size: 52px;
+          font-size: 48px;
           font-weight: 800;
         }
 
@@ -937,14 +991,6 @@ export default function ChatPage() {
           border-radius: 22px;
 
           padding: 24px;
-
-          transition: 0.2s ease;
-        }
-
-        .heroCard:hover {
-          transform: translateY(
-            -4px
-          );
         }
 
         /* CHAT */
@@ -969,8 +1015,6 @@ export default function ChatPage() {
           border-radius: 24px;
 
           margin-bottom: 16px;
-
-          animation: fade 0.2s ease;
         }
 
         .bubble.user {
@@ -1113,7 +1157,7 @@ export default function ChatPage() {
           align-items: center;
           justify-content: center;
 
-          z-index: 200;
+          z-index: 700;
         }
 
         .modal {
@@ -1178,7 +1222,7 @@ export default function ChatPage() {
 
           font-weight: 700;
 
-          z-index: 300;
+          z-index: 900;
         }
 
         /* VOICE */
@@ -1199,7 +1243,7 @@ export default function ChatPage() {
           align-items: center;
           justify-content: center;
 
-          z-index: 250;
+          z-index: 800;
         }
 
         .orb {
@@ -1218,27 +1262,38 @@ export default function ChatPage() {
             infinite;
         }
 
-        /* MOBILE */
-
         .overlayBg {
           display: none;
         }
+
+        /* MOBILE */
 
         @media (max-width: 900px) {
           .sidebar {
             position: fixed;
 
-            left: -320px;
-
             top: 0;
+            left: 0;
 
-            bottom: 0;
+            width: 82%;
+            max-width: 310px;
 
-            z-index: 400;
+            height: 100vh;
+
+            transform: translateX(
+              -105%
+            );
+
+            transition: transform
+              0.28s ease;
+
+            z-index: 500;
           }
 
           .sidebar.show {
-            left: 0;
+            transform: translateX(
+              0
+            );
           }
 
           .overlayBg {
@@ -1252,10 +1307,10 @@ export default function ChatPage() {
               0,
               0,
               0,
-              0.5
+              0.55
             );
 
-            z-index: 300;
+            z-index: 400;
           }
 
           .hero {
@@ -1263,7 +1318,7 @@ export default function ChatPage() {
           }
 
           .hero h1 {
-            font-size: 36px;
+            font-size: 34px;
           }
 
           .heroGrid {
@@ -1294,7 +1349,7 @@ export default function ChatPage() {
           }
         }
 
-        /* ANIMATION */
+        /* ANIMATIONS */
 
         @keyframes pulse {
           50% {
@@ -1308,22 +1363,6 @@ export default function ChatPage() {
           50% {
             transform: translateY(
               -7px
-            );
-          }
-        }
-
-        @keyframes fade {
-          from {
-            opacity: 0;
-            transform: translateY(
-              10px
-            );
-          }
-
-          to {
-            opacity: 1;
-            transform: translateY(
-              0
             );
           }
         }
