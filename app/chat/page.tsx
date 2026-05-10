@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import {
   Menu,
@@ -17,18 +17,8 @@ import {
   User,
   X,
   Trash2,
-  Moon,
-  Sun,
-  PanelLeftClose,
-  LogOut,
   Crown,
-  Image,
-  Paperclip,
-  Volume2,
-  Bookmark,
-  Bell,
-  Edit3,
-  Check,
+  PanelLeftClose,
 } from "lucide-react";
 
 type Role = "user" | "assistant";
@@ -37,7 +27,6 @@ type Message = {
   id: number;
   role: Role;
   text: string;
-  pinned?: boolean;
 };
 
 type Chat = {
@@ -46,16 +35,21 @@ type Chat = {
   messages: Message[];
 };
 
-export default function LuminaUltra() {
-  const bottomRef = useRef<HTMLDivElement>(null);
+export default function ChatPage() {
+  const bottomRef =
+    useRef<HTMLDivElement>(null);
 
-  const [sidebar, setSidebar] = useState(false);
+  const [sidebar, setSidebar] =
+    useState(false);
 
-  const [input, setInput] = useState("");
+  const [input, setInput] =
+    useState("");
 
-  const [typing, setTyping] = useState(false);
+  const [typing, setTyping] =
+    useState(false);
 
-  const [popup, setPopup] = useState("");
+  const [popup, setPopup] =
+    useState("");
 
   const [settingsOpen, setSettingsOpen] =
     useState(false);
@@ -63,37 +57,23 @@ export default function LuminaUltra() {
   const [accountOpen, setAccountOpen] =
     useState(false);
 
-  const [search, setSearch] = useState("");
+  const [search, setSearch] =
+    useState("");
 
   const [voiceOpen, setVoiceOpen] =
     useState(false);
 
-  const [dark, setDark] = useState(true);
-
-  const [notifications, setNotifications] =
-    useState(true);
-
   const [chatIndex, setChatIndex] =
     useState(0);
 
-  const [editingTitle, setEditingTitle] =
-    useState(false);
-
-  const [tempTitle, setTempTitle] =
-    useState("");
-
-  const [savedMessages, setSavedMessages] =
-    useState<number[]>([]);
-
-  const [chats, setChats] = useState<Chat[]>(
-    [
+  const [chats, setChats] =
+    useState<Chat[]>([
       {
         id: 1,
         title: "Welcome",
         messages: [],
       },
-    ]
-  );
+    ]);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({
@@ -106,10 +86,10 @@ export default function LuminaUltra() {
 
     setTimeout(() => {
       setPopup("");
-    }, 2000);
+    }, 2200);
   }
 
-  function newChat() {
+  function createChat() {
     const fresh: Chat = {
       id: Date.now(),
       title: "New Chat",
@@ -121,8 +101,6 @@ export default function LuminaUltra() {
     setChatIndex(0);
 
     setSidebar(false);
-
-    toast("New chat created");
   }
 
   function deleteChat(index: number) {
@@ -211,7 +189,8 @@ export default function LuminaUltra() {
         {
           id: Date.now() + 2,
           role: "assistant",
-          text: "Connection failed.",
+          text:
+            "Connection failed.",
         }
       );
 
@@ -221,8 +200,10 @@ export default function LuminaUltra() {
     setTyping(false);
   }
 
-  function copy(text: string) {
-    navigator.clipboard.writeText(text);
+  function copyText(text: string) {
+    navigator.clipboard.writeText(
+      text
+    );
 
     toast("Copied");
   }
@@ -231,24 +212,7 @@ export default function LuminaUltra() {
     if (type === "up") {
       toast("Thanks for feedback");
     } else {
-      toast("Feedback received");
-    }
-  }
-
-  function saveMessage(id: number) {
-    if (savedMessages.includes(id)) {
-      setSavedMessages((prev) =>
-        prev.filter((x) => x !== id)
-      );
-
-      toast("Removed");
-    } else {
-      setSavedMessages((prev) => [
-        ...prev,
-        id,
-      ]);
-
-      toast("Saved");
+      toast("Feedback saved");
     }
   }
 
@@ -290,41 +254,17 @@ export default function LuminaUltra() {
     };
   }
 
-  function renameChat() {
-    const updated = [...chats];
-
-    updated[chatIndex].title =
-      tempTitle || "Untitled";
-
-    setChats(updated);
-
-    setEditingTitle(false);
-
-    toast("Renamed");
-  }
-
-  const filteredChats = useMemo(() => {
-    return chats.filter((chat) =>
+  const filteredChats = chats.filter(
+    (chat) =>
       chat.title
         .toLowerCase()
         .includes(
           search.toLowerCase()
         )
-    );
-  }, [search, chats]);
+  );
 
   return (
-    <main
-      className={`app ${
-        dark ? "dark" : "light"
-      }`}
-    >
-      {/* BACKGROUND */}
-
-      <div className="bgText">
-        LUMINA
-      </div>
-
+    <main className="app">
       {/* SIDEBAR */}
 
       <aside
@@ -332,14 +272,14 @@ export default function LuminaUltra() {
           sidebar ? "show" : ""
         }`}
       >
-        <div className="topSide">
+        <div className="sidebarTop">
           <div className="logo">
             <Sparkles size={18} />
             Lumina AI
           </div>
 
           <button
-            className="circle"
+            className="iconBtn"
             onClick={() =>
               setSidebar(false)
             }
@@ -351,8 +291,8 @@ export default function LuminaUltra() {
         </div>
 
         <button
-          className="newBtn"
-          onClick={newChat}
+          className="newChatBtn"
+          onClick={createChat}
         >
           <Plus size={18} />
           New Chat
@@ -372,7 +312,7 @@ export default function LuminaUltra() {
           />
         </div>
 
-        <div className="history">
+        <div className="chatHistory">
           {filteredChats.map(
             (chat) => {
               const real =
@@ -384,13 +324,13 @@ export default function LuminaUltra() {
 
               return (
                 <div
+                  key={chat.id}
                   className={`chatCard ${
-                    real ===
-                    chatIndex
+                    chatIndex ===
+                    real
                       ? "active"
                       : ""
                   }`}
-                  key={chat.id}
                 >
                   <button
                     className="chatSelect"
@@ -414,7 +354,7 @@ export default function LuminaUltra() {
                   </button>
 
                   <button
-                    className="miniDelete"
+                    className="deleteBtn"
                     onClick={() =>
                       deleteChat(
                         real
@@ -431,9 +371,9 @@ export default function LuminaUltra() {
           )}
         </div>
 
-        <div className="bottomSide">
+        <div className="sidebarBottom">
           <button
-            className="sideBtn"
+            className="sideAction"
             onClick={() =>
               setSettingsOpen(true)
             }
@@ -443,7 +383,7 @@ export default function LuminaUltra() {
           </button>
 
           <button
-            className="sideBtn"
+            className="sideAction"
             onClick={() =>
               setAccountOpen(true)
             }
@@ -454,6 +394,15 @@ export default function LuminaUltra() {
         </div>
       </aside>
 
+      {sidebar && (
+        <div
+          className="overlayBg"
+          onClick={() =>
+            setSidebar(false)
+          }
+        />
+      )}
+
       {/* MAIN */}
 
       <section className="main">
@@ -461,7 +410,7 @@ export default function LuminaUltra() {
 
         <header className="topbar">
           <button
-            className="circle"
+            className="iconBtn"
             onClick={() =>
               setSidebar(true)
             }
@@ -469,78 +418,27 @@ export default function LuminaUltra() {
             <Menu size={18} />
           </button>
 
-          <div className="titleArea">
-            {editingTitle ? (
-              <div className="renameBox">
-                <input
-                  value={tempTitle}
-                  onChange={(e) =>
-                    setTempTitle(
-                      e.target.value
-                    )
-                  }
-                />
-
-                <button
-                  onClick={
-                    renameChat
-                  }
-                >
-                  <Check
-                    size={16}
-                  />
-                </button>
-              </div>
-            ) : (
-              <>
-                <h2>
-                  {
-                    chats[
-                      chatIndex
-                    ].title
-                  }
-                </h2>
-
-                <button
-                  className="editBtn"
-                  onClick={() => {
-                    setTempTitle(
-                      chats[
-                        chatIndex
-                      ].title
-                    );
-
-                    setEditingTitle(
-                      true
-                    );
-                  }}
-                >
-                  <Edit3
-                    size={14}
-                  />
-                </button>
-              </>
-            )}
+          <div className="topTitle">
+            Lumina Ultra
           </div>
 
-          <button className="premium">
+          <button className="premiumBtn">
             <Crown size={18} />
           </button>
         </header>
 
         {/* HERO */}
 
-        {chats[chatIndex]
-          .messages.length ===
-          0 && (
+        {chats[chatIndex].messages
+          .length === 0 && (
           <div className="hero">
             <h1>
-              Lumina Ultra
+              What can I help with?
             </h1>
 
             <p>
-              Your futuristic AI
-              assistant
+              Chat • Coding • AI •
+              Writing • Research
             </p>
 
             <div className="heroGrid">
@@ -549,15 +447,15 @@ export default function LuminaUltra() {
               </div>
 
               <div className="heroCard">
+                Explain Science
+              </div>
+
+              <div className="heroCard">
                 Generate Code
               </div>
 
               <div className="heroCard">
-                Study Smarter
-              </div>
-
-              <div className="heroCard">
-                AI Research
+                Creative Writing
               </div>
             </div>
           </div>
@@ -575,27 +473,19 @@ export default function LuminaUltra() {
                 msg.role
               }`}
             >
-              <div>
-                {msg.text}
-              </div>
+              <div>{msg.text}</div>
 
               {msg.role ===
                 "assistant" && (
                 <div className="tools">
                   <button
                     onClick={() =>
-                      copy(
+                      copyText(
                         msg.text
                       )
                     }
                   >
                     <Copy
-                      size={14}
-                    />
-                  </button>
-
-                  <button>
-                    <Volume2
                       size={14}
                     />
                   </button>
@@ -620,18 +510,6 @@ export default function LuminaUltra() {
                     }
                   >
                     <ThumbsDown
-                      size={14}
-                    />
-                  </button>
-
-                  <button
-                    onClick={() =>
-                      saveMessage(
-                        msg.id
-                      )
-                    }
-                  >
-                    <Bookmark
                       size={14}
                     />
                   </button>
@@ -670,20 +548,8 @@ export default function LuminaUltra() {
             />
 
             <div className="inputBtns">
-              <button className="circle">
-                <Paperclip
-                  size={18}
-                />
-              </button>
-
-              <button className="circle">
-                <Image
-                  size={18}
-                />
-              </button>
-
               <button
-                className="circle"
+                className="iconBtn"
                 onClick={
                   startVoice
                 }
@@ -707,12 +573,13 @@ export default function LuminaUltra() {
       {/* SETTINGS */}
 
       {settingsOpen && (
-        <div className="overlay">
-          <div className="panel">
-            <div className="panelTop">
+        <div className="modalWrap">
+          <div className="modal">
+            <div className="modalTop">
               <h2>Settings</h2>
 
               <button
+                className="iconBtn"
                 onClick={() =>
                   setSettingsOpen(
                     false
@@ -723,34 +590,11 @@ export default function LuminaUltra() {
               </button>
             </div>
 
-            <button
-              className="setting"
-              onClick={() =>
-                setDark(
-                  !dark
-                )
-              }
-            >
-              {dark ? (
-                <Sun size={18} />
-              ) : (
-                <Moon
-                  size={18}
-                />
-              )}
-
-              Toggle Theme
+            <button className="modalBtn">
+              Theme Settings
             </button>
 
-            <button
-              className="setting"
-              onClick={() =>
-                setNotifications(
-                  !notifications
-                )
-              }
-            >
-              <Bell size={18} />
+            <button className="modalBtn">
               Notifications
             </button>
           </div>
@@ -760,12 +604,13 @@ export default function LuminaUltra() {
       {/* ACCOUNT */}
 
       {accountOpen && (
-        <div className="overlay">
-          <div className="panel">
-            <div className="panelTop">
+        <div className="modalWrap">
+          <div className="modal">
+            <div className="modalTop">
               <h2>Account</h2>
 
               <button
+                className="iconBtn"
                 onClick={() =>
                   setAccountOpen(
                     false
@@ -776,35 +621,12 @@ export default function LuminaUltra() {
               </button>
             </div>
 
-            <div className="profile">
-              <div className="avatar">
-                L
-              </div>
-
-              <div>
-                <h3>
-                  Lumina User
-                </h3>
-
-                <p>
-                  user@lumina.ai
-                </p>
-              </div>
-            </div>
-
-            <button className="setting premiumBtn">
-              <Crown size={18} />
-              Upgrade Premium
+            <button className="modalBtn">
+              Premium Plan
             </button>
 
-            <button className="setting">
-              <Trash2 size={18} />
+            <button className="modalBtn delete">
               Delete Account
-            </button>
-
-            <button className="setting">
-              <LogOut size={18} />
-              Logout
             </button>
           </div>
         </div>
@@ -840,59 +662,42 @@ export default function LuminaUltra() {
           width: 100%;
           height: 100%;
           overflow: hidden;
+          background: #000;
+          color: white;
           font-family: Inter,
             sans-serif;
         }
 
-        .dark {
-          background: #000;
-          color: white;
-        }
-
-        .light {
-          background: #f4f4f4;
-          color: black;
-        }
-
         .app {
-          display: flex;
           width: 100%;
           height: 100vh;
+          display: flex;
           overflow: hidden;
-          position: relative;
+          background: #000;
         }
 
-        .bgText {
-          position: absolute;
-          font-size: 220px;
-          font-weight: 900;
-          opacity: 0.03;
-          left: 50%;
-          top: 50%;
-          transform: translate(
-            -50%,
-            -50%
-          );
-          pointer-events: none;
-        }
+        /* SIDEBAR */
 
         .sidebar {
           width: 290px;
-          background: rgba(
-            10,
-            10,
-            10,
-            0.95
-          );
+          height: 100vh;
+          background: #0b0b0b;
           border-right: 1px solid
-            #1b1b1b;
+            #161616;
+
           display: flex;
           flex-direction: column;
+
           padding: 16px;
+
           flex-shrink: 0;
+
+          z-index: 100;
+
+          transition: 0.3s ease;
         }
 
-        .topSide {
+        .sidebarTop {
           display: flex;
           justify-content: space-between;
           align-items: center;
@@ -902,41 +707,58 @@ export default function LuminaUltra() {
           display: flex;
           align-items: center;
           gap: 10px;
-          font-size: 24px;
+          font-size: 22px;
           font-weight: 800;
         }
 
-        .circle {
+        .iconBtn {
           width: 42px;
           height: 42px;
           border-radius: 50%;
           border: none;
           background: #111;
           color: white;
+
           display: flex;
           align-items: center;
           justify-content: center;
         }
 
-        .newBtn {
+        .newChatBtn {
           margin-top: 20px;
+
           height: 56px;
+
           border-radius: 18px;
+
           border: none;
+
           background: white;
+
           color: black;
+
           font-weight: 700;
+
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: 10px;
         }
 
         .searchBox {
-          height: 52px;
-          background: #101010;
-          border-radius: 16px;
           margin-top: 16px;
+
+          height: 52px;
+
+          border-radius: 16px;
+
+          background: #111;
+
           display: flex;
           align-items: center;
-          padding: 0 14px;
           gap: 10px;
+
+          padding: 0 14px;
         }
 
         .searchBox input {
@@ -947,16 +769,18 @@ export default function LuminaUltra() {
           color: white;
         }
 
-        .history {
+        .chatHistory {
           flex: 1;
           overflow-y: auto;
-          margin-top: 18px;
+          margin-top: 16px;
         }
 
         .chatCard {
           display: flex;
           align-items: center;
+
           border-radius: 14px;
+
           margin-bottom: 10px;
         }
 
@@ -966,161 +790,226 @@ export default function LuminaUltra() {
 
         .chatSelect {
           flex: 1;
+
           height: 52px;
-          background: transparent;
+
           border: none;
+
+          background: transparent;
+
           color: white;
+
           display: flex;
           align-items: center;
+
           gap: 10px;
+
           padding: 0 14px;
         }
 
-        .miniDelete {
+        .deleteBtn {
           width: 40px;
           height: 40px;
+
           border: none;
+
           background: transparent;
+
           color: #777;
         }
 
-        .bottomSide {
+        .sidebarBottom {
           display: flex;
           flex-direction: column;
           gap: 10px;
         }
 
-        .sideBtn {
+        .sideAction {
           height: 52px;
+
           border-radius: 16px;
+
           border: none;
+
           background: #111;
+
           color: white;
+
           display: flex;
           align-items: center;
+
           gap: 10px;
+
           padding: 0 14px;
         }
 
+        /* MAIN */
+
         .main {
           flex: 1;
+
+          height: 100vh;
+
           display: flex;
+
           flex-direction: column;
+
           overflow: hidden;
         }
 
         .topbar {
           height: 72px;
+
           border-bottom: 1px solid
-            #151515;
+            #161616;
+
           display: flex;
+
           align-items: center;
+
           justify-content: space-between;
-          padding: 0 20px;
+
+          padding: 0 18px;
+
           flex-shrink: 0;
         }
 
-        .titleArea {
-          display: flex;
-          align-items: center;
-          gap: 10px;
+        .topTitle {
+          font-size: 20px;
+          font-weight: 700;
         }
 
-        .editBtn {
-          width: 30px;
-          height: 30px;
+        .premiumBtn {
+          width: 42px;
+          height: 42px;
+
           border-radius: 50%;
-          border: none;
-          background: #111;
-          color: white;
-        }
 
-        .renameBox {
+          border: none;
+
+          background: white;
+
+          color: black;
+
           display: flex;
           align-items: center;
-          gap: 10px;
+          justify-content: center;
         }
 
-        .renameBox input {
-          width: 180px;
-          height: 40px;
-          border-radius: 12px;
-          border: none;
-          background: #111;
-          color: white;
-          padding: 0 12px;
-        }
+        /* HERO */
 
         .hero {
           padding: 60px 20px
             20px;
+
           text-align: center;
         }
 
         .hero h1 {
-          font-size: 54px;
+          font-size: 52px;
+          font-weight: 800;
         }
 
         .hero p {
           margin-top: 10px;
-          color: #999;
+          color: #888;
         }
 
         .heroGrid {
+          max-width: 700px;
+
+          margin: 28px auto 0;
+
           display: grid;
+
           grid-template-columns:
             repeat(2, 1fr);
+
           gap: 14px;
-          max-width: 700px;
-          margin: 30px auto 0;
         }
 
         .heroCard {
-          padding: 24px;
-          border-radius: 24px;
           background: #111;
+
+          border: 1px solid
+            #1a1a1a;
+
+          border-radius: 22px;
+
+          padding: 24px;
+
+          transition: 0.2s ease;
         }
+
+        .heroCard:hover {
+          transform: translateY(
+            -4px
+          );
+        }
+
+        /* CHAT */
 
         .chatArea {
           flex: 1;
+
           overflow-y: auto;
+
           padding: 20px;
+
+          display: flex;
+
+          flex-direction: column;
         }
 
         .bubble {
           max-width: 760px;
+
           padding: 18px;
+
           border-radius: 24px;
-          margin-bottom: 18px;
-          animation: fade 0.2s
-            ease;
+
+          margin-bottom: 16px;
+
+          animation: fade 0.2s ease;
         }
 
         .bubble.user {
+          align-self: flex-end;
+
           background: white;
+
           color: black;
-          margin-left: auto;
         }
 
         .bubble.assistant {
           background: #111;
+
           border: 1px solid
-            #1b1b1b;
+            #1a1a1a;
         }
 
         .tools {
           display: flex;
           gap: 10px;
-          margin-top: 16px;
+
+          margin-top: 14px;
         }
 
         .tools button {
           width: 34px;
           height: 34px;
+
           border-radius: 50%;
+
           border: none;
-          background: #1b1b1b;
+
+          background: #1a1a1a;
+
           color: white;
+
+          display: flex;
+          align-items: center;
+          justify-content: center;
         }
 
         .typing {
@@ -1132,35 +1021,56 @@ export default function LuminaUltra() {
         .typing span {
           width: 10px;
           height: 10px;
+
           border-radius: 50%;
+
           background: white;
+
           animation: bounce 1s
             infinite;
         }
 
+        /* INPUT */
+
         .inputWrap {
-          padding: 18px;
+          padding: 16px;
+
           border-top: 1px solid
-            #151515;
+            #161616;
+
           flex-shrink: 0;
         }
 
         .inputBox {
-          height: 70px;
+          min-height: 68px;
+
           border-radius: 24px;
+
           background: #111;
+
+          border: 1px solid
+            #1a1a1a;
+
           display: flex;
+
           align-items: center;
-          padding: 0 16px;
-          gap: 10px;
+
+          gap: 12px;
+
+          padding: 12px 14px;
         }
 
         .inputBox input {
           flex: 1;
+
           background: transparent;
+
           border: none;
+
           outline: none;
+
           color: white;
+
           font-size: 16px;
         }
 
@@ -1172,123 +1082,219 @@ export default function LuminaUltra() {
         .sendBtn {
           width: 46px;
           height: 46px;
+
           border-radius: 50%;
+
           border: none;
+
           background: white;
+
           color: black;
+
+          display: flex;
+          align-items: center;
+          justify-content: center;
         }
 
-        .overlay {
+        /* MODALS */
+
+        .modalWrap {
           position: fixed;
           inset: 0;
+
           background: rgba(
             0,
             0,
             0,
-            0.7
+            0.6
           );
+
           display: flex;
           align-items: center;
           justify-content: center;
-          z-index: 100;
+
+          z-index: 200;
         }
 
-        .panel {
+        .modal {
           width: 420px;
+
           background: #0b0b0b;
+
+          border: 1px solid
+            #1a1a1a;
+
           border-radius: 28px;
+
           padding: 24px;
         }
 
-        .panelTop {
+        .modalTop {
           display: flex;
           justify-content: space-between;
           align-items: center;
         }
 
-        .setting {
+        .modalBtn {
           width: 100%;
+
           height: 54px;
+
           border-radius: 16px;
+
           border: none;
+
           background: #111;
+
           color: white;
-          display: flex;
-          align-items: center;
-          gap: 10px;
-          padding: 0 16px;
+
           margin-top: 16px;
         }
 
-        .premiumBtn {
-          background: white;
-          color: black;
-          font-weight: 700;
+        .delete {
+          background: #2a1010;
         }
 
-        .profile {
-          display: flex;
-          align-items: center;
-          gap: 16px;
-          margin-top: 24px;
-        }
-
-        .avatar {
-          width: 70px;
-          height: 70px;
-          border-radius: 50%;
-          background: white;
-          color: black;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          font-size: 30px;
-          font-weight: 800;
-        }
+        /* POPUP */
 
         .popup {
           position: fixed;
+
           bottom: 24px;
+
           left: 50%;
+
           transform: translateX(
             -50%
           );
+
           background: white;
+
           color: black;
+
           padding: 14px 22px;
+
           border-radius: 999px;
+
           font-weight: 700;
-          z-index: 200;
+
+          z-index: 300;
         }
+
+        /* VOICE */
 
         .voiceOverlay {
           position: fixed;
           inset: 0;
+
           background: rgba(
             0,
             0,
             0,
-            0.8
+            0.82
           );
+
           display: flex;
           flex-direction: column;
           align-items: center;
           justify-content: center;
-          z-index: 150;
+
+          z-index: 250;
         }
 
         .orb {
           width: 180px;
           height: 180px;
+
           border-radius: 50%;
+
           background: radial-gradient(
             circle,
             white,
             #444
           );
+
           animation: pulse 1.2s
             infinite;
         }
+
+        /* MOBILE */
+
+        .overlayBg {
+          display: none;
+        }
+
+        @media (max-width: 900px) {
+          .sidebar {
+            position: fixed;
+
+            left: -320px;
+
+            top: 0;
+
+            bottom: 0;
+
+            z-index: 400;
+          }
+
+          .sidebar.show {
+            left: 0;
+          }
+
+          .overlayBg {
+            display: block;
+
+            position: fixed;
+
+            inset: 0;
+
+            background: rgba(
+              0,
+              0,
+              0,
+              0.5
+            );
+
+            z-index: 300;
+          }
+
+          .hero {
+            padding-top: 40px;
+          }
+
+          .hero h1 {
+            font-size: 36px;
+          }
+
+          .heroGrid {
+            grid-template-columns:
+              1fr;
+          }
+
+          .bubble {
+            max-width: 100%;
+          }
+
+          .modal {
+            width: calc(
+              100% - 20px
+            );
+          }
+
+          .topTitle {
+            font-size: 18px;
+          }
+
+          .inputBox {
+            min-height: 64px;
+          }
+
+          .inputBox input {
+            font-size: 15px;
+          }
+        }
+
+        /* ANIMATION */
 
         @keyframes pulse {
           50% {
@@ -1301,7 +1307,7 @@ export default function LuminaUltra() {
         @keyframes bounce {
           50% {
             transform: translateY(
-              -8px
+              -7px
             );
           }
         }
@@ -1319,44 +1325,6 @@ export default function LuminaUltra() {
             transform: translateY(
               0
             );
-          }
-        }
-
-        @media (max-width: 900px) {
-          .sidebar {
-            position: fixed;
-            left: -100%;
-            top: 0;
-            bottom: 0;
-            z-index: 200;
-            transition: 0.3s;
-          }
-
-          .sidebar.show {
-            left: 0;
-          }
-
-          .heroGrid {
-            grid-template-columns:
-              1fr;
-          }
-
-          .hero h1 {
-            font-size: 42px;
-          }
-
-          .bubble {
-            max-width: 100%;
-          }
-
-          .panel {
-            width: calc(
-              100% - 20px
-            );
-          }
-
-          .bgText {
-            font-size: 120px;
           }
         }
       `}</style>
