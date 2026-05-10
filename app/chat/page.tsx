@@ -1,37 +1,35 @@
-// app/chat/page.tsx
-
 "use client";
+
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import {
   Menu,
-  Search,
   Plus,
   Send,
+  Search,
   Mic,
   Sparkles,
+  MessageSquare,
   Copy,
   ThumbsUp,
   ThumbsDown,
-  Trash2,
-  Crown,
   Settings,
   User,
-  LogOut,
   X,
-  MessageSquare,
+  Trash2,
+  Moon,
+  Sun,
   PanelLeftClose,
-  Volume2,
-  Image as ImageIcon,
+  LogOut,
+  Crown,
+  Image,
   Paperclip,
-  Bot,
+  Volume2,
+  Bookmark,
+  Bell,
+  Edit3,
+  Check,
 } from "lucide-react";
-
-import {
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
 
 type Role = "user" | "assistant";
 
@@ -39,7 +37,7 @@ type Message = {
   id: number;
   role: Role;
   text: string;
-  time: string;
+  pinned?: boolean;
 };
 
 type Chat = {
@@ -48,13 +46,16 @@ type Chat = {
   messages: Message[];
 };
 
-export default function LuminaUltraChat() {
+export default function LuminaUltra() {
   const bottomRef = useRef<HTMLDivElement>(null);
 
   const [sidebar, setSidebar] = useState(false);
 
-  const [voiceOpen, setVoiceOpen] =
-    useState(false);
+  const [input, setInput] = useState("");
+
+  const [typing, setTyping] = useState(false);
+
+  const [popup, setPopup] = useState("");
 
   const [settingsOpen, setSettingsOpen] =
     useState(false);
@@ -62,23 +63,27 @@ export default function LuminaUltraChat() {
   const [accountOpen, setAccountOpen] =
     useState(false);
 
-  const [typing, setTyping] = useState(false);
-
-  const [popup, setPopup] = useState("");
-
   const [search, setSearch] = useState("");
 
-  const [input, setInput] = useState("");
+  const [voiceOpen, setVoiceOpen] =
+    useState(false);
 
-  const [theme, setTheme] = useState("Ultra");
+  const [dark, setDark] = useState(true);
 
-  const [currentChat, setCurrentChat] =
+  const [notifications, setNotifications] =
+    useState(true);
+
+  const [chatIndex, setChatIndex] =
     useState(0);
 
-  const [user] = useState({
-    name: "Lumina User",
-    email: "user@lumina.ai",
-  });
+  const [editingTitle, setEditingTitle] =
+    useState(false);
+
+  const [tempTitle, setTempTitle] =
+    useState("");
+
+  const [savedMessages, setSavedMessages] =
+    useState<number[]>([]);
 
   const [chats, setChats] = useState<Chat[]>(
     [
@@ -101,127 +106,26 @@ export default function LuminaUltraChat() {
 
     setTimeout(() => {
       setPopup("");
-    }, 2200);
-  }
-
-  function getTime() {
-    return new Date().toLocaleTimeString([], {
-      hour: "2-digit",
-      minute: "2-digit",
-    });
+    }, 2000);
   }
 
   function newChat() {
-    const created: Chat = {
+    const fresh: Chat = {
       id: Date.now(),
       title: "New Chat",
       messages: [],
     };
 
-    setChats((prev) => [created, ...prev]);
+    setChats((prev) => [fresh, ...prev]);
 
-    setCurrentChat(0);
+    setChatIndex(0);
+
+    setSidebar(false);
 
     toast("New chat created");
   }
 
-  async function sendMessage() {
-    if (!input.trim()) return;
-
-    const message: Message = {
-      id: Date.now(),
-      role: "user",
-      text: input,
-      time: getTime(),
-    };
-
-    const updated = [...chats];
-
-    updated[currentChat].messages.push(
-      message
-    );
-
-    if (
-      updated[currentChat].title ===
-        "Welcome" ||
-      updated[currentChat].title ===
-        "New Chat"
-    ) {
-      updated[currentChat].title =
-        input.slice(0, 30);
-    }
-
-    setChats(updated);
-
-    const currentInput = input;
-
-    setInput("");
-
-    setTyping(true);
-
-    try {
-      const response = await fetch(
-        "/api/chat",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type":
-              "application/json",
-          },
-          body: JSON.stringify({
-            message: currentInput,
-          }),
-        }
-      );
-
-      const data = await response.json();
-
-      updated[currentChat].messages.push(
-        {
-          id: Date.now() + 1,
-          role: "assistant",
-          text:
-            data.reply ||
-            "Lumina AI unavailable.",
-          time: getTime(),
-        }
-      );
-
-      setChats([...updated]);
-    } catch {
-      updated[currentChat].messages.push(
-        {
-          id: Date.now() + 2,
-          role: "assistant",
-          text:
-            "Connection failed.",
-          time: getTime(),
-        }
-      );
-
-      setChats([...updated]);
-    }
-
-    setTyping(false);
-  }
-
-  function copyText(text: string) {
-    navigator.clipboard.writeText(text);
-
-    toast("Copied");
-  }
-
-  function reaction(type: string) {
-    if (type === "up") {
-      toast(
-        "Thank you for the feedback"
-      );
-    } else {
-      toast("Feedback submitted");
-    }
-  }
-
-  function removeChat(index: number) {
+  function deleteChat(index: number) {
     const updated = chats.filter(
       (_, i) => i !== index
     );
@@ -235,26 +139,117 @@ export default function LuminaUltraChat() {
         },
       ]);
 
-      setCurrentChat(0);
+      setChatIndex(0);
     } else {
       setChats(updated);
 
-      setCurrentChat(0);
+      setChatIndex(0);
     }
 
     toast("Chat deleted");
   }
 
-  function logout() {
-    localStorage.removeItem("logged");
+  async function sendMessage() {
+    if (!input.trim()) return;
 
-    window.location.href = "/login";
+    const updated = [...chats];
+
+    updated[chatIndex].messages.push({
+      id: Date.now(),
+      role: "user",
+      text: input,
+    });
+
+    if (
+      updated[chatIndex].title ===
+        "Welcome" ||
+      updated[chatIndex].title ===
+        "New Chat"
+    ) {
+      updated[chatIndex].title =
+        input.slice(0, 24);
+    }
+
+    setChats(updated);
+
+    const current = input;
+
+    setInput("");
+
+    setTyping(true);
+
+    try {
+      const res = await fetch(
+        "/api/chat",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type":
+              "application/json",
+          },
+          body: JSON.stringify({
+            message: current,
+          }),
+        }
+      );
+
+      const data = await res.json();
+
+      updated[chatIndex].messages.push(
+        {
+          id: Date.now() + 1,
+          role: "assistant",
+          text:
+            data.reply ||
+            "Lumina AI unavailable.",
+        }
+      );
+
+      setChats([...updated]);
+    } catch {
+      updated[chatIndex].messages.push(
+        {
+          id: Date.now() + 2,
+          role: "assistant",
+          text: "Connection failed.",
+        }
+      );
+
+      setChats([...updated]);
+    }
+
+    setTyping(false);
   }
 
-  function deleteAccount() {
-    toast(
-      "Delete account system connected later"
-    );
+  function copy(text: string) {
+    navigator.clipboard.writeText(text);
+
+    toast("Copied");
+  }
+
+  function react(type: string) {
+    if (type === "up") {
+      toast("Thanks for feedback");
+    } else {
+      toast("Feedback received");
+    }
+  }
+
+  function saveMessage(id: number) {
+    if (savedMessages.includes(id)) {
+      setSavedMessages((prev) =>
+        prev.filter((x) => x !== id)
+      );
+
+      toast("Removed");
+    } else {
+      setSavedMessages((prev) => [
+        ...prev,
+        id,
+      ]);
+
+      toast("Saved");
+    }
   }
 
   function startVoice() {
@@ -265,9 +260,7 @@ export default function LuminaUltraChat() {
         .webkitSpeechRecognition;
 
     if (!SpeechRecognition) {
-      toast(
-        "Voice unsupported on device"
-      );
+      toast("Voice unsupported");
       return;
     }
 
@@ -276,19 +269,14 @@ export default function LuminaUltraChat() {
     const recognition =
       new SpeechRecognition();
 
-    recognition.lang = "en-US";
-
-    recognition.interimResults = false;
-
     recognition.start();
 
     recognition.onresult = (
-      event: any
+      e: any
     ) => {
-      const transcript =
-        event.results[0][0].transcript;
-
-      setInput(transcript);
+      setInput(
+        e.results[0][0].transcript
+      );
 
       setVoiceOpen(false);
 
@@ -300,10 +288,19 @@ export default function LuminaUltraChat() {
 
       toast("Voice failed");
     };
+  }
 
-    recognition.onend = () => {
-      setVoiceOpen(false);
-    };
+  function renameChat() {
+    const updated = [...chats];
+
+    updated[chatIndex].title =
+      tempTitle || "Untitled";
+
+    setChats(updated);
+
+    setEditingTitle(false);
+
+    toast("Renamed");
   }
 
   const filteredChats = useMemo(() => {
@@ -317,15 +314,16 @@ export default function LuminaUltraChat() {
   }, [search, chats]);
 
   return (
-    <main className="app">
+    <main
+      className={`app ${
+        dark ? "dark" : "light"
+      }`}
+    >
       {/* BACKGROUND */}
 
       <div className="bgText">
         LUMINA
       </div>
-
-      <div className="glow glow1" />
-      <div className="glow glow2" />
 
       {/* SIDEBAR */}
 
@@ -334,14 +332,14 @@ export default function LuminaUltraChat() {
           sidebar ? "show" : ""
         }`}
       >
-        <div className="sideTop">
+        <div className="topSide">
           <div className="logo">
             <Sparkles size={18} />
             Lumina AI
           </div>
 
           <button
-            className="closeSide"
+            className="circle"
             onClick={() =>
               setSidebar(false)
             }
@@ -353,7 +351,7 @@ export default function LuminaUltraChat() {
         </div>
 
         <button
-          className="newChatBtn"
+          className="newBtn"
           onClick={newChat}
         >
           <Plus size={18} />
@@ -375,37 +373,30 @@ export default function LuminaUltraChat() {
         </div>
 
         <div className="history">
-          {filteredChats.length ===
-            0 && (
-            <div className="empty">
-              No chats found
-            </div>
-          )}
-
           {filteredChats.map(
-            (chat, index) => {
-              const realIndex =
+            (chat) => {
+              const real =
                 chats.findIndex(
-                  (c) =>
-                    c.id ===
+                  (x) =>
+                    x.id ===
                     chat.id
                 );
 
               return (
                 <div
-                  className={`historyWrap ${
-                    currentChat ===
-                    realIndex
+                  className={`chatCard ${
+                    real ===
+                    chatIndex
                       ? "active"
                       : ""
                   }`}
                   key={chat.id}
                 >
                   <button
-                    className="historyBtn"
+                    className="chatSelect"
                     onClick={() => {
-                      setCurrentChat(
-                        realIndex
+                      setChatIndex(
+                        real
                       );
 
                       setSidebar(
@@ -423,10 +414,10 @@ export default function LuminaUltraChat() {
                   </button>
 
                   <button
-                    className="deleteMini"
+                    className="miniDelete"
                     onClick={() =>
-                      removeChat(
-                        realIndex
+                      deleteChat(
+                        real
                       )
                     }
                   >
@@ -440,9 +431,9 @@ export default function LuminaUltraChat() {
           )}
         </div>
 
-        <div className="bottomMenu">
+        <div className="bottomSide">
           <button
-            className="menuBtn"
+            className="sideBtn"
             onClick={() =>
               setSettingsOpen(true)
             }
@@ -452,7 +443,7 @@ export default function LuminaUltraChat() {
           </button>
 
           <button
-            className="menuBtn"
+            className="sideBtn"
             onClick={() =>
               setAccountOpen(true)
             }
@@ -470,63 +461,103 @@ export default function LuminaUltraChat() {
 
         <header className="topbar">
           <button
-            className="iconBtn"
+            className="circle"
             onClick={() =>
               setSidebar(true)
             }
           >
-            <Menu size={20} />
+            <Menu size={18} />
           </button>
 
-          <div className="topTitle">
-            <Bot size={18} />
+          <div className="titleArea">
+            {editingTitle ? (
+              <div className="renameBox">
+                <input
+                  value={tempTitle}
+                  onChange={(e) =>
+                    setTempTitle(
+                      e.target.value
+                    )
+                  }
+                />
 
-            Lumina Ultra
+                <button
+                  onClick={
+                    renameChat
+                  }
+                >
+                  <Check
+                    size={16}
+                  />
+                </button>
+              </div>
+            ) : (
+              <>
+                <h2>
+                  {
+                    chats[
+                      chatIndex
+                    ].title
+                  }
+                </h2>
+
+                <button
+                  className="editBtn"
+                  onClick={() => {
+                    setTempTitle(
+                      chats[
+                        chatIndex
+                      ].title
+                    );
+
+                    setEditingTitle(
+                      true
+                    );
+                  }}
+                >
+                  <Edit3
+                    size={14}
+                  />
+                </button>
+              </>
+            )}
           </div>
 
-          <button
-            className="premiumBtn"
-            onClick={() =>
-              toast(
-                "Premium coming soon"
-              )
-            }
-          >
+          <button className="premium">
             <Crown size={18} />
           </button>
         </header>
 
         {/* HERO */}
 
-        {chats[currentChat]
+        {chats[chatIndex]
           .messages.length ===
           0 && (
           <div className="hero">
             <h1>
-              What can I help with?
+              Lumina Ultra
             </h1>
 
             <p>
-              AI Chat • Coding •
-              Study • Research •
-              Creativity
+              Your futuristic AI
+              assistant
             </p>
 
-            <div className="cards">
-              <div className="card">
-                Build websites
+            <div className="heroGrid">
+              <div className="heroCard">
+                Build Websites
               </div>
 
-              <div className="card">
-                Generate code
+              <div className="heroCard">
+                Generate Code
               </div>
 
-              <div className="card">
-                Explain science
+              <div className="heroCard">
+                Study Smarter
               </div>
 
-              <div className="card">
-                Create content
+              <div className="heroCard">
+                AI Research
               </div>
             </div>
           </div>
@@ -535,73 +566,79 @@ export default function LuminaUltraChat() {
         {/* CHAT */}
 
         <div className="chatArea">
-          {chats[currentChat].messages.map(
-            (msg) => (
-              <div
-                key={msg.id}
-                className={`bubble ${
-                  msg.role
-                }`}
-              >
-                <div className="msgText">
-                  {msg.text}
-                </div>
-
-                <div className="msgBottom">
-                  <span className="time">
-                    {msg.time}
-                  </span>
-
-                  {msg.role ===
-                    "assistant" && (
-                    <div className="tools">
-                      <button
-                        onClick={() =>
-                          copyText(
-                            msg.text
-                          )
-                        }
-                      >
-                        <Copy
-                          size={14}
-                        />
-                      </button>
-
-                      <button>
-                        <Volume2
-                          size={14}
-                        />
-                      </button>
-
-                      <button
-                        onClick={() =>
-                          reaction(
-                            "up"
-                          )
-                        }
-                      >
-                        <ThumbsUp
-                          size={14}
-                        />
-                      </button>
-
-                      <button
-                        onClick={() =>
-                          reaction(
-                            "down"
-                          )
-                        }
-                      >
-                        <ThumbsDown
-                          size={14}
-                        />
-                      </button>
-                    </div>
-                  )}
-                </div>
+          {chats[
+            chatIndex
+          ].messages.map((msg) => (
+            <div
+              key={msg.id}
+              className={`bubble ${
+                msg.role
+              }`}
+            >
+              <div>
+                {msg.text}
               </div>
-            )
-          )}
+
+              {msg.role ===
+                "assistant" && (
+                <div className="tools">
+                  <button
+                    onClick={() =>
+                      copy(
+                        msg.text
+                      )
+                    }
+                  >
+                    <Copy
+                      size={14}
+                    />
+                  </button>
+
+                  <button>
+                    <Volume2
+                      size={14}
+                    />
+                  </button>
+
+                  <button
+                    onClick={() =>
+                      react(
+                        "up"
+                      )
+                    }
+                  >
+                    <ThumbsUp
+                      size={14}
+                    />
+                  </button>
+
+                  <button
+                    onClick={() =>
+                      react(
+                        "down"
+                      )
+                    }
+                  >
+                    <ThumbsDown
+                      size={14}
+                    />
+                  </button>
+
+                  <button
+                    onClick={() =>
+                      saveMessage(
+                        msg.id
+                      )
+                    }
+                  >
+                    <Bookmark
+                      size={14}
+                    />
+                  </button>
+                </div>
+              )}
+            </div>
+          ))}
 
           {typing && (
             <div className="typing">
@@ -632,29 +669,33 @@ export default function LuminaUltraChat() {
               }
             />
 
-            <div className="inputTools">
-              <button className="toolBtn">
+            <div className="inputBtns">
+              <button className="circle">
                 <Paperclip
                   size={18}
                 />
               </button>
 
-              <button className="toolBtn">
-                <ImageIcon
+              <button className="circle">
+                <Image
                   size={18}
                 />
               </button>
 
               <button
-                className="toolBtn"
-                onClick={startVoice}
+                className="circle"
+                onClick={
+                  startVoice
+                }
               >
                 <Mic size={18} />
               </button>
 
               <button
                 className="sendBtn"
-                onClick={sendMessage}
+                onClick={
+                  sendMessage
+                }
               >
                 <Send size={18} />
               </button>
@@ -682,21 +723,36 @@ export default function LuminaUltraChat() {
               </button>
             </div>
 
-            <div className="settingItem">
-              Theme: {theme}
-            </div>
+            <button
+              className="setting"
+              onClick={() =>
+                setDark(
+                  !dark
+                )
+              }
+            >
+              {dark ? (
+                <Sun size={18} />
+              ) : (
+                <Moon
+                  size={18}
+                />
+              )}
 
-            <div className="settingItem">
-              Voice Input Enabled
-            </div>
+              Toggle Theme
+            </button>
 
-            <div className="settingItem">
-              Smooth Animations
-            </div>
-
-            <div className="settingItem">
-              AI Streaming Mode
-            </div>
+            <button
+              className="setting"
+              onClick={() =>
+                setNotifications(
+                  !notifications
+                )
+              }
+            >
+              <Bell size={18} />
+              Notifications
+            </button>
           </div>
         </div>
       )}
@@ -722,37 +778,31 @@ export default function LuminaUltraChat() {
 
             <div className="profile">
               <div className="avatar">
-                {user.name.charAt(0)}
+                L
               </div>
 
               <div>
-                <h3>{user.name}</h3>
+                <h3>
+                  Lumina User
+                </h3>
 
                 <p>
-                  {user.email}
+                  user@lumina.ai
                 </p>
               </div>
             </div>
 
-            <button className="panelBtn premium">
+            <button className="setting premiumBtn">
               <Crown size={18} />
               Upgrade Premium
             </button>
 
-            <button
-              className="panelBtn danger"
-              onClick={
-                deleteAccount
-              }
-            >
+            <button className="setting">
               <Trash2 size={18} />
               Delete Account
             </button>
 
-            <button
-              className="panelBtn logout"
-              onClick={logout}
-            >
+            <button className="setting">
               <LogOut size={18} />
               Logout
             </button>
@@ -764,7 +814,7 @@ export default function LuminaUltraChat() {
 
       {voiceOpen && (
         <div className="voiceOverlay">
-          <div className="voiceOrb" />
+          <div className="orb" />
 
           <h2>Listening...</h2>
         </div>
@@ -787,56 +837,43 @@ export default function LuminaUltraChat() {
 
         html,
         body {
-          background: #000;
-          color: white;
+          width: 100%;
+          height: 100%;
+          overflow: hidden;
           font-family: Inter,
             sans-serif;
-          overflow: hidden;
+        }
+
+        .dark {
+          background: #000;
+          color: white;
+        }
+
+        .light {
+          background: #f4f4f4;
+          color: black;
         }
 
         .app {
           display: flex;
+          width: 100%;
           height: 100vh;
           overflow: hidden;
           position: relative;
-          background: black;
         }
 
         .bgText {
           position: absolute;
-          top: 50%;
+          font-size: 220px;
+          font-weight: 900;
+          opacity: 0.03;
           left: 50%;
+          top: 50%;
           transform: translate(
             -50%,
             -50%
           );
-          font-size: 220px;
-          font-weight: 900;
-          opacity: 0.03;
-          letter-spacing: 20px;
           pointer-events: none;
-        }
-
-        .glow {
-          position: absolute;
-          border-radius: 50%;
-          filter: blur(140px);
-        }
-
-        .glow1 {
-          width: 340px;
-          height: 340px;
-          background: #222;
-          top: -100px;
-          left: -100px;
-        }
-
-        .glow2 {
-          width: 300px;
-          height: 300px;
-          background: #111;
-          bottom: -100px;
-          right: -100px;
         }
 
         .sidebar {
@@ -848,17 +885,14 @@ export default function LuminaUltraChat() {
             0.95
           );
           border-right: 1px solid
-            #1a1a1a;
-          padding: 18px;
+            #1b1b1b;
           display: flex;
           flex-direction: column;
-          z-index: 10;
-          backdrop-filter: blur(
-            20px
-          );
+          padding: 16px;
+          flex-shrink: 0;
         }
 
-        .sideTop {
+        .topSide {
           display: flex;
           justify-content: space-between;
           align-items: center;
@@ -872,138 +906,9 @@ export default function LuminaUltraChat() {
           font-weight: 800;
         }
 
-        .closeSide {
-          display: none;
-        }
-
-        .newChatBtn {
-          margin-top: 20px;
-          height: 56px;
-          border-radius: 18px;
-          border: none;
-          background: white;
-          color: black;
-          font-weight: 700;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          gap: 10px;
-          cursor: pointer;
-        }
-
-        .searchBox {
-          margin-top: 18px;
-          height: 52px;
-          border-radius: 16px;
-          background: #101010;
-          border: 1px solid
-            #1d1d1d;
-          display: flex;
-          align-items: center;
-          gap: 10px;
-          padding: 0 14px;
-        }
-
-        .searchBox input {
-          flex: 1;
-          border: none;
-          outline: none;
-          background: transparent;
-          color: white;
-        }
-
-        .history {
-          flex: 1;
-          overflow-y: auto;
-          margin-top: 20px;
-        }
-
-        .historyWrap {
-          display: flex;
-          align-items: center;
-          margin-bottom: 10px;
-          border-radius: 16px;
-        }
-
-        .historyWrap.active {
-          background: #151515;
-        }
-
-        .historyBtn {
-          flex: 1;
-          height: 52px;
-          border: none;
-          background: transparent;
-          color: white;
-          display: flex;
-          align-items: center;
-          gap: 10px;
-          padding: 0 14px;
-        }
-
-        .deleteMini {
-          width: 40px;
-          height: 40px;
-          border: none;
-          background: transparent;
-          color: #777;
-        }
-
-        .empty {
-          color: #666;
-          text-align: center;
-          margin-top: 30px;
-        }
-
-        .bottomMenu {
-          display: flex;
-          flex-direction: column;
-          gap: 10px;
-        }
-
-        .menuBtn {
-          height: 52px;
-          border-radius: 16px;
-          border: none;
-          background: #101010;
-          color: white;
-          display: flex;
-          align-items: center;
-          gap: 12px;
-          padding: 0 14px;
-        }
-
-        .main {
-          flex: 1;
-          display: flex;
-          flex-direction: column;
-          position: relative;
-        }
-
-        .topbar {
-          height: 72px;
-          border-bottom: 1px solid
-            #111;
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          padding: 0 20px;
-        }
-
-        .topTitle {
-          display: flex;
-          align-items: center;
-          gap: 10px;
-          font-size: 24px;
-          font-weight: 800;
-        }
-
-        .iconBtn,
-        .premiumBtn,
-        .toolBtn,
-        .tools button {
-          width: 44px;
-          height: 44px;
+        .circle {
+          width: 42px;
+          height: 42px;
           border-radius: 50%;
           border: none;
           background: #111;
@@ -1013,53 +918,178 @@ export default function LuminaUltraChat() {
           justify-content: center;
         }
 
+        .newBtn {
+          margin-top: 20px;
+          height: 56px;
+          border-radius: 18px;
+          border: none;
+          background: white;
+          color: black;
+          font-weight: 700;
+        }
+
+        .searchBox {
+          height: 52px;
+          background: #101010;
+          border-radius: 16px;
+          margin-top: 16px;
+          display: flex;
+          align-items: center;
+          padding: 0 14px;
+          gap: 10px;
+        }
+
+        .searchBox input {
+          flex: 1;
+          background: transparent;
+          border: none;
+          outline: none;
+          color: white;
+        }
+
+        .history {
+          flex: 1;
+          overflow-y: auto;
+          margin-top: 18px;
+        }
+
+        .chatCard {
+          display: flex;
+          align-items: center;
+          border-radius: 14px;
+          margin-bottom: 10px;
+        }
+
+        .chatCard.active {
+          background: #151515;
+        }
+
+        .chatSelect {
+          flex: 1;
+          height: 52px;
+          background: transparent;
+          border: none;
+          color: white;
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          padding: 0 14px;
+        }
+
+        .miniDelete {
+          width: 40px;
+          height: 40px;
+          border: none;
+          background: transparent;
+          color: #777;
+        }
+
+        .bottomSide {
+          display: flex;
+          flex-direction: column;
+          gap: 10px;
+        }
+
+        .sideBtn {
+          height: 52px;
+          border-radius: 16px;
+          border: none;
+          background: #111;
+          color: white;
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          padding: 0 14px;
+        }
+
+        .main {
+          flex: 1;
+          display: flex;
+          flex-direction: column;
+          overflow: hidden;
+        }
+
+        .topbar {
+          height: 72px;
+          border-bottom: 1px solid
+            #151515;
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          padding: 0 20px;
+          flex-shrink: 0;
+        }
+
+        .titleArea {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+        }
+
+        .editBtn {
+          width: 30px;
+          height: 30px;
+          border-radius: 50%;
+          border: none;
+          background: #111;
+          color: white;
+        }
+
+        .renameBox {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+        }
+
+        .renameBox input {
+          width: 180px;
+          height: 40px;
+          border-radius: 12px;
+          border: none;
+          background: #111;
+          color: white;
+          padding: 0 12px;
+        }
+
         .hero {
-          padding: 70px 30px
+          padding: 60px 20px
             20px;
+          text-align: center;
         }
 
         .hero h1 {
-          font-size: 52px;
-          font-weight: 800;
+          font-size: 54px;
         }
 
         .hero p {
-          margin-top: 12px;
+          margin-top: 10px;
           color: #999;
         }
 
-        .cards {
+        .heroGrid {
           display: grid;
           grid-template-columns:
             repeat(2, 1fr);
           gap: 14px;
-          margin-top: 28px;
-          max-width: 780px;
+          max-width: 700px;
+          margin: 30px auto 0;
         }
 
-        .card {
+        .heroCard {
           padding: 24px;
           border-radius: 24px;
-          background: rgba(
-            15,
-            15,
-            15,
-            0.9
-          );
-          border: 1px solid
-            #1d1d1d;
+          background: #111;
         }
 
         .chatArea {
           flex: 1;
           overflow-y: auto;
-          padding: 20px 30px
-            140px;
+          padding: 20px;
         }
 
         .bubble {
-          max-width: 780px;
-          padding: 20px;
+          max-width: 760px;
+          padding: 18px;
           border-radius: 24px;
           margin-bottom: 18px;
           animation: fade 0.2s
@@ -1073,37 +1103,30 @@ export default function LuminaUltraChat() {
         }
 
         .bubble.assistant {
-          background: rgba(
-            12,
-            12,
-            12,
-            0.95
-          );
+          background: #111;
           border: 1px solid
-            #1d1d1d;
-        }
-
-        .msgBottom {
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-          margin-top: 16px;
-        }
-
-        .time {
-          color: #777;
-          font-size: 13px;
+            #1b1b1b;
         }
 
         .tools {
           display: flex;
           gap: 10px;
+          margin-top: 16px;
+        }
+
+        .tools button {
+          width: 34px;
+          height: 34px;
+          border-radius: 50%;
+          border: none;
+          background: #1b1b1b;
+          color: white;
         }
 
         .typing {
           display: flex;
           gap: 8px;
-          padding: 14px;
+          padding: 10px;
         }
 
         .typing span {
@@ -1116,39 +1139,20 @@ export default function LuminaUltraChat() {
         }
 
         .inputWrap {
-          position: absolute;
-          bottom: 0;
-          left: 0;
-          right: 0;
           padding: 18px;
-          background: rgba(
-            0,
-            0,
-            0,
-            0.8
-          );
-          backdrop-filter: blur(
-            20px
-          );
+          border-top: 1px solid
+            #151515;
+          flex-shrink: 0;
         }
 
         .inputBox {
-          max-width: 950px;
-          margin: auto;
-          min-height: 76px;
-          border-radius: 30px;
-          background: rgba(
-            10,
-            10,
-            10,
-            0.95
-          );
-          border: 1px solid
-            #1d1d1d;
+          height: 70px;
+          border-radius: 24px;
+          background: #111;
           display: flex;
           align-items: center;
-          padding: 0 18px 0
-            24px;
+          padding: 0 16px;
+          gap: 10px;
         }
 
         .inputBox input {
@@ -1157,17 +1161,17 @@ export default function LuminaUltraChat() {
           border: none;
           outline: none;
           color: white;
-          font-size: 17px;
+          font-size: 16px;
         }
 
-        .inputTools {
+        .inputBtns {
           display: flex;
           gap: 10px;
         }
 
         .sendBtn {
-          width: 48px;
-          height: 48px;
+          width: 46px;
+          height: 46px;
           border-radius: 50%;
           border: none;
           background: white;
@@ -1193,8 +1197,6 @@ export default function LuminaUltraChat() {
           width: 420px;
           background: #0b0b0b;
           border-radius: 28px;
-          border: 1px solid
-            #1d1d1d;
           padding: 24px;
         }
 
@@ -1204,14 +1206,24 @@ export default function LuminaUltraChat() {
           align-items: center;
         }
 
-        .settingItem {
-          height: 56px;
-          border-radius: 18px;
-          background: #101010;
+        .setting {
+          width: 100%;
+          height: 54px;
+          border-radius: 16px;
+          border: none;
+          background: #111;
+          color: white;
           display: flex;
           align-items: center;
-          padding: 0 18px;
+          gap: 10px;
+          padding: 0 16px;
           margin-top: 16px;
+        }
+
+        .premiumBtn {
+          background: white;
+          color: black;
+          font-weight: 700;
         }
 
         .profile {
@@ -1222,49 +1234,21 @@ export default function LuminaUltraChat() {
         }
 
         .avatar {
-          width: 72px;
-          height: 72px;
+          width: 70px;
+          height: 70px;
           border-radius: 50%;
           background: white;
           color: black;
           display: flex;
           align-items: center;
           justify-content: center;
-          font-size: 28px;
+          font-size: 30px;
           font-weight: 800;
-        }
-
-        .panelBtn {
-          width: 100%;
-          height: 56px;
-          border-radius: 18px;
-          border: none;
-          display: flex;
-          align-items: center;
-          gap: 12px;
-          padding: 0 18px;
-          margin-top: 16px;
-          background: #101010;
-          color: white;
-        }
-
-        .premium {
-          background: white;
-          color: black;
-          font-weight: 700;
-        }
-
-        .danger {
-          background: #220909;
-        }
-
-        .logout {
-          background: #151515;
         }
 
         .popup {
           position: fixed;
-          bottom: 30px;
+          bottom: 24px;
           left: 50%;
           transform: translateX(
             -50%
@@ -1284,7 +1268,7 @@ export default function LuminaUltraChat() {
             0,
             0,
             0,
-            0.85
+            0.8
           );
           display: flex;
           flex-direction: column;
@@ -1293,9 +1277,9 @@ export default function LuminaUltraChat() {
           z-index: 150;
         }
 
-        .voiceOrb {
-          width: 190px;
-          height: 190px;
+        .orb {
+          width: 180px;
+          height: 180px;
           border-radius: 50%;
           background: radial-gradient(
             circle,
@@ -1304,11 +1288,6 @@ export default function LuminaUltraChat() {
           );
           animation: pulse 1.2s
             infinite;
-        }
-
-        .voiceOverlay h2 {
-          margin-top: 24px;
-          font-size: 34px;
         }
 
         @keyframes pulse {
@@ -1349,6 +1328,7 @@ export default function LuminaUltraChat() {
             left: -100%;
             top: 0;
             bottom: 0;
+            z-index: 200;
             transition: 0.3s;
           }
 
@@ -1356,35 +1336,13 @@ export default function LuminaUltraChat() {
             left: 0;
           }
 
-          .closeSide {
-            display: flex;
-            width: 40px;
-            height: 40px;
-            border-radius: 50%;
-            border: none;
-            background: #111;
-            color: white;
-            align-items: center;
-            justify-content: center;
-          }
-
-          .hero {
-            padding: 40px 20px
-              10px;
-          }
-
-          .hero h1 {
-            font-size: 38px;
-          }
-
-          .cards {
+          .heroGrid {
             grid-template-columns:
               1fr;
           }
 
-          .chatArea {
-            padding: 20px 16px
-              140px;
+          .hero h1 {
+            font-size: 42px;
           }
 
           .bubble {
