@@ -1,5 +1,3 @@
-// app/chat/page.tsx
-
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -21,9 +19,6 @@ import {
   ThumbsDown,
   Sparkles,
   MessageSquare,
-  Volume2,
-  Moon,
-  Shield,
 } from "lucide-react";
 
 import { createClient } from "@supabase/supabase-js";
@@ -53,38 +48,29 @@ export default function LuminaUltra() {
   const bottomRef = useRef<HTMLDivElement>(null);
 
   const [loading, setLoading] = useState(true);
-
   const [user, setUser] = useState<any>(null);
 
   const [sidebar, setSidebar] = useState(false);
-
   const [settingsOpen, setSettingsOpen] = useState(false);
-
   const [accountOpen, setAccountOpen] = useState(false);
 
-  const [voiceOpen, setVoiceOpen] = useState(false);
-
   const [typing, setTyping] = useState(false);
+  const [voiceOpen, setVoiceOpen] = useState(false);
 
   const [popup, setPopup] = useState("");
 
   const [input, setInput] = useState("");
-
   const [search, setSearch] = useState("");
 
   const [currentChat, setCurrentChat] = useState(0);
 
-  const [glowEnabled, setGlowEnabled] = useState(true);
-
   const [chats, setChats] = useState<Chat[]>([
     {
       id: 1,
-      title: "Welcome",
+      title: "New Chat",
       messages: [],
     },
   ]);
-
-  // ---------------- AUTH ----------------
 
   useEffect(() => {
     async function checkUser() {
@@ -102,25 +88,7 @@ export default function LuminaUltra() {
     }
 
     checkUser();
-
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange(
-      (_event, session) => {
-        if (!session) {
-          router.push("/login");
-        } else {
-          setUser(session.user);
-        }
-      }
-    );
-
-    return () => {
-      subscription.unsubscribe();
-    };
   }, [router]);
-
-  // ---------------- SCROLL ----------------
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({
@@ -128,17 +96,13 @@ export default function LuminaUltra() {
     });
   }, [chats, typing]);
 
-  // ---------------- TOAST ----------------
-
   function toast(text: string) {
     setPopup(text);
 
     setTimeout(() => {
       setPopup("");
-    }, 2400);
+    }, 2200);
   }
-
-  // ---------------- NEW CHAT ----------------
 
   function createChat() {
     const newChat: Chat = {
@@ -148,42 +112,36 @@ export default function LuminaUltra() {
     };
 
     setChats((prev) => [newChat, ...prev]);
-
     setCurrentChat(0);
 
-    toast("New chat started");
+    if (window.innerWidth < 900) {
+      setSidebar(false);
+    }
   }
-
-  // ---------------- SEND ----------------
 
   async function sendMessage() {
     if (!input.trim()) return;
 
-    const messageText = input;
-
     const userMessage: Message = {
       id: Date.now(),
       role: "user",
-      text: messageText,
+      text: input,
     };
 
-    const updatedChats = [...chats];
+    const updated = [...chats];
 
-    updatedChats[currentChat].messages.push(
-      userMessage
-    );
+    updated[currentChat].messages.push(userMessage);
 
     if (
-      updatedChats[currentChat].title ===
-        "New Chat" ||
-      updatedChats[currentChat].title ===
-        "Welcome"
+      updated[currentChat].title === "New Chat"
     ) {
-      updatedChats[currentChat].title =
-        messageText.slice(0, 24);
+      updated[currentChat].title =
+        input.slice(0, 22);
     }
 
-    setChats([...updatedChats]);
+    setChats(updated);
+
+    const userText = input;
 
     setInput("");
 
@@ -197,7 +155,7 @@ export default function LuminaUltra() {
             "application/json",
         },
         body: JSON.stringify({
-          message: messageText,
+          message: userText,
         }),
       });
 
@@ -208,41 +166,27 @@ export default function LuminaUltra() {
         role: "assistant",
         text:
           data.reply ||
-          "Lumina AI is unavailable right now.",
+          "Lumina AI is thinking...",
       };
 
-      updatedChats[currentChat].messages.push(
+      updated[currentChat].messages.push(
         aiMessage
       );
 
-      setChats([...updatedChats]);
+      setChats([...updated]);
     } catch {
-      updatedChats[currentChat].messages.push(
-        {
-          id: Date.now() + 2,
-          role: "assistant",
-          text:
-            "Connection failed. Try again.",
-        }
-      );
+      updated[currentChat].messages.push({
+        id: Date.now() + 2,
+        role: "assistant",
+        text:
+          "AI temporarily unavailable.",
+      });
 
-      setChats([...updatedChats]);
+      setChats([...updated]);
     }
 
     setTyping(false);
   }
-
-  // ---------------- SEARCH ----------------
-
-  const filteredChats = useMemo(() => {
-    return chats.filter((chat) =>
-      chat.title
-        .toLowerCase()
-        .includes(search.toLowerCase())
-    );
-  }, [search, chats]);
-
-  // ---------------- COPY ----------------
 
   function copy(text: string) {
     navigator.clipboard.writeText(text);
@@ -250,17 +194,13 @@ export default function LuminaUltra() {
     toast("Copied");
   }
 
-  // ---------------- REACTION ----------------
-
-  function react(type: "up" | "down") {
+  function reaction(type: "up" | "down") {
     if (type === "up") {
-      toast("Thanks for the feedback");
+      toast("Thanks for feedback");
     } else {
-      toast("Feedback submitted");
+      toast("Response reported");
     }
   }
-
-  // ---------------- LOGOUT ----------------
 
   async function logout() {
     await supabase.auth.signOut();
@@ -268,13 +208,9 @@ export default function LuminaUltra() {
     router.push("/login");
   }
 
-  // ---------------- DELETE ACCOUNT ----------------
-
-  async function deleteAccount() {
-    toast("Delete system coming soon");
+  function deleteAccount() {
+    toast("Delete account coming soon");
   }
-
-  // ---------------- VOICE ----------------
 
   function startVoice() {
     const SpeechRecognition =
@@ -290,31 +226,24 @@ export default function LuminaUltra() {
     const recognition =
       new SpeechRecognition();
 
-    recognition.lang = "en-US";
-
-    recognition.continuous = false;
-
-    recognition.interimResults = false;
-
     setVoiceOpen(true);
+
+    recognition.lang = "en-US";
 
     recognition.start();
 
     recognition.onresult = (event: any) => {
-      const transcript =
-        event.results[0][0].transcript;
-
-      setInput(transcript);
-
-      toast("Voice captured");
+      setInput(
+        event.results[0][0].transcript
+      );
 
       setVoiceOpen(false);
+
+      toast("Voice captured");
     };
 
     recognition.onerror = () => {
       setVoiceOpen(false);
-
-      toast("Voice cancelled");
     };
 
     recognition.onend = () => {
@@ -322,30 +251,25 @@ export default function LuminaUltra() {
     };
   }
 
-  // ---------------- LOADER ----------------
+  const filteredChats = useMemo(() => {
+    return chats.filter((chat) =>
+      chat.title
+        .toLowerCase()
+        .includes(search.toLowerCase())
+    );
+  }, [search, chats]);
 
   if (loading) {
     return (
       <div className="loader">
-        <div className="loaderOrb" />
+        <div className="spinner" />
       </div>
     );
   }
 
   return (
     <main className="app">
-      {/* BACKGROUND */}
-
-      <div className="bgText">
-        LUMINA
-      </div>
-
-      {glowEnabled && (
-        <>
-          <div className="glow glow1" />
-          <div className="glow glow2" />
-        </>
-      )}
+      <div className="bg" />
 
       {/* SIDEBAR */}
 
@@ -354,14 +278,14 @@ export default function LuminaUltra() {
           sidebar ? "show" : ""
         }`}
       >
-        <div className="sideTop">
+        <div className="sidebarTop">
           <div className="logo">
             <Sparkles size={18} />
-            Lumina AI
+            Lumina
           </div>
 
           <button
-            className="mobileClose"
+            className="iconBtn mobileOnly"
             onClick={() =>
               setSidebar(false)
             }
@@ -395,7 +319,7 @@ export default function LuminaUltra() {
             (chat, index) => (
               <button
                 key={chat.id}
-                className={`historyItem ${
+                className={`chatItem ${
                   currentChat === index
                     ? "active"
                     : ""
@@ -404,8 +328,7 @@ export default function LuminaUltra() {
                   const realIndex =
                     chats.findIndex(
                       (c) =>
-                        c.id ===
-                        chat.id
+                        c.id === chat.id
                     );
 
                   setCurrentChat(
@@ -415,13 +338,8 @@ export default function LuminaUltra() {
                   setSidebar(false);
                 }}
               >
-                <MessageSquare
-                  size={16}
-                />
-
-                <span>
-                  {chat.title}
-                </span>
+                <MessageSquare size={16} />
+                {chat.title}
               </button>
             )
           )}
@@ -429,7 +347,7 @@ export default function LuminaUltra() {
 
         <div className="sidebarBottom">
           <button
-            className="menuBtn"
+            className="sideBtn"
             onClick={() =>
               setSettingsOpen(true)
             }
@@ -439,7 +357,7 @@ export default function LuminaUltra() {
           </button>
 
           <button
-            className="menuBtn"
+            className="sideBtn"
             onClick={() =>
               setAccountOpen(true)
             }
@@ -453,11 +371,9 @@ export default function LuminaUltra() {
       {/* MAIN */}
 
       <section className="main">
-        {/* TOPBAR */}
-
         <header className="topbar">
           <button
-            className="circleBtn"
+            className="iconBtn"
             onClick={() =>
               setSidebar(true)
             }
@@ -465,114 +381,78 @@ export default function LuminaUltra() {
             <Menu size={20} />
           </button>
 
-          <div className="brand">
-            Lumina Ultra
-          </div>
+          <h1>Lumina Ultra</h1>
 
-          <button
-            className="premium"
-            onClick={() =>
-              toast(
-                "Premium launching soon"
-              )
-            }
-          >
+          <button className="premium">
             <Crown size={18} />
           </button>
         </header>
 
-        {/* HERO */}
-
         {chats[currentChat].messages
           .length === 0 && (
           <div className="hero">
-            <h1>
-              What can I help you
-              with?
-            </h1>
+            <h2>
+              Ask anything.
+            </h2>
 
             <p>
-              Fast AI • Voice •
-              Research • Creativity
+              Fast AI assistant with
+              futuristic intelligence.
             </p>
-
-            <div className="heroGrid">
-              <div className="heroCard">
-                Generate code
-              </div>
-
-              <div className="heroCard">
-                Study smarter
-              </div>
-
-              <div className="heroCard">
-                Create content
-              </div>
-
-              <div className="heroCard">
-                Research topics
-              </div>
-            </div>
           </div>
         )}
 
-        {/* CHAT */}
-
-        <div className="chatArea">
+        <div className="messages">
           {chats[currentChat].messages.map(
             (msg) => (
               <div
                 key={msg.id}
-                className={`msg ${
-                  msg.role === "user"
-                    ? "user"
-                    : "ai"
+                className={`message ${
+                  msg.role
                 }`}
               >
-                <div className="msgText">
+                <div className="bubble">
                   {msg.text}
+
+                  {msg.role ===
+                    "assistant" && (
+                    <div className="actions">
+                      <button
+                        onClick={() =>
+                          copy(
+                            msg.text
+                          )
+                        }
+                      >
+                        <Copy size={14} />
+                      </button>
+
+                      <button
+                        onClick={() =>
+                          reaction(
+                            "up"
+                          )
+                        }
+                      >
+                        <ThumbsUp
+                          size={14}
+                        />
+                      </button>
+
+                      <button
+                        onClick={() =>
+                          reaction(
+                            "down"
+                          )
+                        }
+                      >
+                        <ThumbsDown
+                          size={14}
+                        />
+                      </button>
+                    </div>
+                  )}
                 </div>
-
-                {msg.role ===
-                  "assistant" && (
-                  <div className="actions">
-                    <button
-                      onClick={() =>
-                        copy(msg.text)
-                      }
-                    >
-                      <Copy
-                        size={15}
-                      />
-                    </button>
-
-                    <button
-                      onClick={() =>
-                        react("up")
-                      }
-                    >
-                      <ThumbsUp
-                        size={15}
-                      />
-                    </button>
-
-                    <button
-                      onClick={() =>
-                        react("down")
-                      }
-                    >
-                      <ThumbsDown
-                        size={15}
-                      />
-                    </button>
-
-                    <button>
-                      <Volume2
-                        size={15}
-                      />
-                    </button>
-                  </div>
-                )}
               </div>
             )
           )}
@@ -588,9 +468,7 @@ export default function LuminaUltra() {
           <div ref={bottomRef} />
         </div>
 
-        {/* INPUT */}
-
-        <div className="inputWrap">
+        <div className="inputArea">
           <div className="inputBox">
             <input
               placeholder="Ask Lumina AI..."
@@ -606,100 +484,35 @@ export default function LuminaUltra() {
               }
             />
 
-            <div className="inputButtons">
-              <button
-                className="circleBtn"
-                onClick={startVoice}
-              >
-                <Mic size={18} />
-              </button>
+            <button
+              className="iconBtn"
+              onClick={startVoice}
+            >
+              <Mic size={18} />
+            </button>
 
-              <button
-                className="sendBtn"
-                onClick={sendMessage}
-              >
-                <Send size={18} />
-              </button>
-            </div>
+            <button
+              className="sendBtn"
+              onClick={sendMessage}
+            >
+              <Send size={18} />
+            </button>
           </div>
         </div>
       </section>
-
-      {/* SETTINGS */}
-
-      {settingsOpen && (
-        <div className="overlay">
-          <div className="panel">
-            <div className="panelTop">
-              <h2>Settings</h2>
-
-              <button
-                className="circleBtn"
-                onClick={() =>
-                  setSettingsOpen(
-                    false
-                  )
-                }
-              >
-                <X size={18} />
-              </button>
-            </div>
-
-            <div className="settingRow">
-              <div>
-                <h3>
-                  Glow Effects
-                </h3>
-
-                <p>
-                  Futuristic visual
-                  glow
-                </p>
-              </div>
-
-              <button
-                className={`toggle ${
-                  glowEnabled
-                    ? "active"
-                    : ""
-                }`}
-                onClick={() =>
-                  setGlowEnabled(
-                    !glowEnabled
-                  )
-                }
-              >
-                <div />
-              </button>
-            </div>
-
-            <div className="settingCard">
-              <Moon size={18} />
-              Dark Ultra Theme
-            </div>
-
-            <div className="settingCard">
-              <Shield size={18} />
-              Secure Encryption
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* ACCOUNT */}
 
       {accountOpen && (
         <div className="overlay">
           <div className="panel">
-            <div className="panelTop">
+            <div className="panelHead">
               <h2>Account</h2>
 
               <button
-                className="circleBtn"
+                className="iconBtn"
                 onClick={() =>
-                  setAccountOpen(
-                    false
-                  )
+                  setAccountOpen(false)
                 }
               >
                 <X size={18} />
@@ -708,9 +521,7 @@ export default function LuminaUltra() {
 
             <div className="profile">
               <div className="avatar">
-                {user?.email?.charAt(
-                  0
-                )}
+                {user?.email?.[0]}
               </div>
 
               <div>
@@ -731,9 +542,7 @@ export default function LuminaUltra() {
 
             <button
               className="panelBtn danger"
-              onClick={
-                deleteAccount
-              }
+              onClick={deleteAccount}
             >
               <Trash2 size={18} />
               Delete Account
@@ -750,11 +559,36 @@ export default function LuminaUltra() {
         </div>
       )}
 
+      {/* SETTINGS */}
+
+      {settingsOpen && (
+        <div className="overlay">
+          <div className="panel">
+            <div className="panelHead">
+              <h2>Settings</h2>
+
+              <button
+                className="iconBtn"
+                onClick={() =>
+                  setSettingsOpen(false)
+                }
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="setting">
+              Futuristic animations enabled
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* VOICE */}
 
       {voiceOpen && (
-        <div className="voiceOverlay">
-          <div className="voiceOrb" />
+        <div className="voice">
+          <div className="orb" />
 
           <h2>Listening...</h2>
         </div>
@@ -763,12 +597,10 @@ export default function LuminaUltra() {
       {/* POPUP */}
 
       {popup && (
-        <div className="popup">
+        <div className="toast">
           {popup}
         </div>
       )}
-
-      {/* STYLES */}
 
       <style jsx global>{`
         * {
@@ -777,161 +609,130 @@ export default function LuminaUltra() {
           box-sizing: border-box;
         }
 
-    html,
-  body {
-  width: 100%;
-  height: 100%;
-  overflow: hidden;
-  background: #000;
-}
+        html,
+        body {
+          width: 100%;
+          overflow: hidden;
+          background: #000;
+          color: white;
+          font-family: Inter,
+            sans-serif;
+        }
 
-body {
-  color: white;
-  font-family: Inter, sans-serif;
-  -webkit-font-smoothing: antialiased;
-  text-rendering: optimizeLegibility;
-}
+        .app {
+          display: flex;
+          width: 100%;
+          height: 100dvh;
+          overflow: hidden;
+          position: relative;
+          background: black;
+        }
 
-.app {
-  display: flex;
-  width: 100%;
-  height: 100dvh;
-  min-height: 100dvh;
-  position: relative;
-  background: #000;
-  overflow: hidden;
-}
-
-        .bgText {
+        .bg {
           position: absolute;
-          top: 50%;
-          left: 50%;
-          transform: translate(
-            -50%,
-            -50%
-          );
-          font-size: 240px;
-          font-weight: 900;
-          opacity: 0.03;
-          letter-spacing: 18px;
+          inset: 0;
+          background:
+            radial-gradient(
+              circle at top left,
+              rgba(
+                255,
+                255,
+                255,
+                0.08
+              ),
+              transparent 30%
+            ),
+            radial-gradient(
+              circle at bottom right,
+              rgba(
+                255,
+                255,
+                255,
+                0.05
+              ),
+              transparent 30%
+            );
           pointer-events: none;
-        }
-
-        .glow {
-          position: absolute;
-          border-radius: 50%;
-          filter: blur(120px);
-        }
-
-        .glow1 {
-          width: 350px;
-          height: 350px;
-          background: #222;
-          top: -100px;
-          left: -100px;
-        }
-
-        .glow2 {
-          width: 300px;
-          height: 300px;
-          background: #111;
-          right: -100px;
-          bottom: -100px;
         }
 
         .sidebar {
           width: 290px;
-          background: rgba(
-            10,
-            10,
-            10,
-            0.94
-          );
-          border-right: 1px solid
-            #181818;
+          background: #090909;
+          border-right: 1px solid #171717;
           padding: 18px;
           display: flex;
           flex-direction: column;
-          z-index: 10;
+          z-index: 50;
         }
 
-        .sideTop {
+        .sidebarTop {
           display: flex;
-          justify-content: space-between;
           align-items: center;
+          justify-content: space-between;
         }
 
         .logo {
+          font-size: 22px;
+          font-weight: 800;
           display: flex;
           align-items: center;
           gap: 10px;
-          font-size: 21px;
-          font-weight: 700;
-        }
-
-        .mobileClose {
-          display: none;
         }
 
         .newChat {
-          height: 56px;
-          border-radius: 18px;
+          margin-top: 20px;
+          height: 54px;
           border: none;
+          border-radius: 18px;
           background: white;
           color: black;
           font-weight: 700;
-          margin-top: 20px;
           cursor: pointer;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          gap: 10px;
         }
 
         .searchBox {
-          height: 50px;
+          margin-top: 16px;
+          height: 52px;
           border-radius: 16px;
-          background: #101010;
-          border: 1px solid
-            #1e1e1e;
-          margin-top: 18px;
+          background: #121212;
+          border: 1px solid #1f1f1f;
           display: flex;
           align-items: center;
           gap: 10px;
-          padding: 0 16px;
+          padding: 0 14px;
         }
 
         .searchBox input {
-          flex: 1;
           background: transparent;
           border: none;
           outline: none;
           color: white;
+          width: 100%;
         }
 
         .history {
           flex: 1;
           overflow-y: auto;
-          margin-top: 18px;
+          margin-top: 20px;
         }
 
-        .historyItem {
+        .chatItem {
           width: 100%;
-          height: 52px;
-          border: none;
+          min-height: 50px;
           border-radius: 16px;
+          border: none;
           background: transparent;
           color: white;
           display: flex;
           align-items: center;
-          gap: 12px;
-          padding: 0 16px;
-          margin-bottom: 10px;
+          gap: 10px;
+          padding: 14px;
           cursor: pointer;
+          margin-bottom: 10px;
         }
 
-        .historyItem:hover,
-        .historyItem.active {
+        .chatItem.active,
+        .chatItem:hover {
           background: #141414;
         }
 
@@ -941,16 +742,12 @@ body {
           gap: 10px;
         }
 
-        .menuBtn {
+        .sideBtn {
           height: 50px;
-          border-radius: 16px;
           border: none;
-          background: #111;
+          border-radius: 16px;
+          background: #121212;
           color: white;
-          display: flex;
-          align-items: center;
-          gap: 12px;
-          padding: 0 16px;
           cursor: pointer;
         }
 
@@ -958,127 +755,78 @@ body {
           flex: 1;
           display: flex;
           flex-direction: column;
-          position: relative;
+          min-width: 0;
           overflow: hidden;
         }
 
         .topbar {
           height: 72px;
-          border-bottom: 1px solid
-            #111;
+          border-bottom: 1px solid #111;
           display: flex;
           align-items: center;
           justify-content: space-between;
-          padding: 0 20px;
-          z-index: 5;
+          padding: 0 18px;
+          flex-shrink: 0;
         }
 
-        .brand {
-          font-size: 24px;
-          font-weight: 800;
-        }
-
-        .circleBtn,
-        .premium,
-        .actions button {
-          width: 44px;
-          height: 44px;
-          border-radius: 50%;
-          border: none;
-          background: #111;
-          color: white;
-          cursor: pointer;
+        .topbar h1 {
+          font-size: 22px;
         }
 
         .hero {
-          padding: 60px 30px 20px;
+          padding: 70px 24px 20px;
+          text-align: center;
         }
 
-        .hero h1 {
-          font-size: 52px;
-          font-weight: 800;
+        .hero h2 {
+          font-size: 54px;
+          font-weight: 900;
         }
 
         .hero p {
-          margin-top: 14px;
           color: #888;
-          font-size: 18px;
+          margin-top: 14px;
         }
 
-        .heroGrid {
-          display: grid;
-          grid-template-columns: repeat(
-            2,
-            1fr
-          );
-          gap: 14px;
-          margin-top: 30px;
-          max-width: 800px;
-        }
-
-        .heroCard {
-          background: rgba(
-            14,
-            14,
-            14,
-            0.9
-          );
-          border: 1px solid
-            #1e1e1e;
-          border-radius: 24px;
-          padding: 24px;
-          font-size: 17px;
-          transition: 0.2s;
-        }
-
-        .heroCard:hover {
-          transform: translateY(
-            -4px
-          );
-        }
-
-        .chatArea {
+        .messages {
           flex: 1;
           overflow-y: auto;
-          padding: 20px 20px 140px;
           width: 100%;
+          padding: 20px 16px 140px;
         }
 
-        .msg {
+        .message {
+          width: 100%;
+          display: flex;
+          margin-bottom: 18px;
+        }
+
+        .message.user {
+          justify-content: flex-end;
+        }
+
+        .message.assistant {
+          justify-content: flex-start;
+        }
+
+        .bubble {
           width: fit-content;
-          max-width: min(
-            760px,
-            100%
-          );
+          max-width: min(820px, 100%);
           padding: 18px;
           border-radius: 24px;
-          margin-bottom: 18px;
-          animation: fade 0.25s ease;
-          word-wrap: break-word;
+          word-break: break-word;
           overflow-wrap: break-word;
+          line-height: 1.7;
         }
 
-        .msg.ai {
-          background: rgba(
-            12,
-            12,
-            12,
-            0.96
-          );
-          border: 1px solid
-            #1c1c1c;
-        }
-
-        .msg.user {
-          margin-left: auto;
+        .message.user .bubble {
           background: white;
           color: black;
         }
 
-        .msgText {
-          line-height: 1.7;
-          font-size: 16px;
-          white-space: pre-wrap;
+        .message.assistant .bubble {
+          background: #101010;
+          border: 1px solid #1b1b1b;
         }
 
         .actions {
@@ -1087,26 +835,44 @@ body {
           margin-top: 16px;
         }
 
+        .actions button,
+        .iconBtn,
+        .premium,
+        .sendBtn {
+          width: 42px;
+          height: 42px;
+          border-radius: 50%;
+          border: none;
+          background: #141414;
+          color: white;
+          cursor: pointer;
+        }
+
+        .sendBtn {
+          background: white;
+          color: black;
+        }
+
         .typing {
           display: flex;
           gap: 8px;
-          padding: 8px 0;
+          padding: 20px;
         }
 
         .typing span {
           width: 10px;
           height: 10px;
-          border-radius: 50%;
           background: white;
+          border-radius: 50%;
           animation: bounce 1s infinite;
         }
 
-        .inputWrap {
-          position: absolute;
+        .inputArea {
+          position: fixed;
           bottom: 0;
-          left: 0;
           right: 0;
-          padding: 18px;
+          left: 290px;
+          padding: 16px;
           background: linear-gradient(
             to top,
             black,
@@ -1115,136 +881,62 @@ body {
         }
 
         .inputBox {
-          max-width: 950px;
-          width: 100%;
+          max-width: 900px;
           margin: auto;
-          min-height: 72px;
-          border-radius: 30px;
-          background: rgba(
-            12,
-            12,
-            12,
-            0.96
-          );
-          border: 1px solid
-            #1e1e1e;
+          height: 72px;
+          border-radius: 28px;
+          background: #0d0d0d;
+          border: 1px solid #1d1d1d;
           display: flex;
           align-items: center;
           padding: 0 14px 0 22px;
+          gap: 10px;
         }
 
         .inputBox input {
           flex: 1;
-          min-width: 0;
           background: transparent;
           border: none;
           outline: none;
           color: white;
-          font-size: 17px;
+          font-size: 16px;
         }
 
-        .inputButtons {
-          display: flex;
-          gap: 10px;
-          margin-left: 10px;
-        }
-
-        .sendBtn {
-          width: 48px;
-          height: 48px;
-          border-radius: 50%;
-          border: none;
-          background: white;
-          color: black;
-          cursor: pointer;
-        }
-
-        .overlay {
+        .overlay,
+        .voice {
           position: fixed;
           inset: 0;
-          background: rgba(
-            0,
-            0,
-            0,
-            0.75
-          );
+          background: rgba(0,0,0,0.82);
           display: flex;
           align-items: center;
           justify-content: center;
-          z-index: 120;
+          z-index: 200;
         }
 
         .panel {
-          width: 420px;
-          max-width: calc(
-            100vw - 20px
-          );
+          width: min(420px, 95%);
           background: #0b0b0b;
-          border: 1px solid
-            #1e1e1e;
           border-radius: 28px;
+          border: 1px solid #1c1c1c;
           padding: 24px;
         }
 
-        .panelTop {
+        .panelHead {
           display: flex;
-          align-items: center;
           justify-content: space-between;
-        }
-
-        .settingRow {
-          margin-top: 24px;
-          display: flex;
           align-items: center;
-          justify-content: space-between;
-        }
-
-        .settingCard {
-          height: 54px;
-          border-radius: 18px;
-          background: #111;
-          display: flex;
-          align-items: center;
-          gap: 12px;
-          padding: 0 16px;
-          margin-top: 14px;
-        }
-
-        .toggle {
-          width: 58px;
-          height: 32px;
-          border-radius: 999px;
-          border: none;
-          background: #222;
-          position: relative;
-          cursor: pointer;
-        }
-
-        .toggle div {
-          width: 24px;
-          height: 24px;
-          background: white;
-          border-radius: 50%;
-          position: absolute;
-          top: 4px;
-          left: 4px;
-          transition: 0.2s;
-        }
-
-        .toggle.active div {
-          left: 30px;
         }
 
         .profile {
           display: flex;
-          align-items: center;
           gap: 16px;
+          align-items: center;
           margin-top: 24px;
         }
 
         .avatar {
-          width: 68px;
-          height: 68px;
+          width: 70px;
+          height: 70px;
           border-radius: 50%;
           background: white;
           color: black;
@@ -1252,113 +944,80 @@ body {
           align-items: center;
           justify-content: center;
           font-size: 28px;
-          font-weight: 700;
+          font-weight: 800;
         }
 
         .panelBtn {
           width: 100%;
-          height: 56px;
-          border-radius: 18px;
+          height: 54px;
           border: none;
-          background: #111;
-          color: white;
-          display: flex;
-          align-items: center;
-          gap: 12px;
-          padding: 0 18px;
+          border-radius: 18px;
           margin-top: 16px;
+          background: #131313;
+          color: white;
           cursor: pointer;
         }
 
         .danger {
-          background: #240909;
+          background: #250b0b;
         }
 
         .logout {
           background: white;
           color: black;
-          font-weight: 700;
         }
 
-        .popup {
+        .toast {
           position: fixed;
-          bottom: 30px;
+          bottom: 100px;
           left: 50%;
-          transform: translateX(
-            -50%
-          );
+          transform: translateX(-50%);
           background: white;
           color: black;
-          padding: 14px 22px;
+          padding: 14px 20px;
           border-radius: 999px;
+          z-index: 400;
           font-weight: 700;
-          z-index: 200;
         }
 
-        .voiceOverlay {
-          position: fixed;
-          inset: 0;
-          background: rgba(
-            0,
-            0,
-            0,
-            0.88
-          );
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-          justify-content: center;
-          z-index: 150;
-        }
-
-        .voiceOrb {
+        .orb {
           width: 180px;
           height: 180px;
           border-radius: 50%;
           background: radial-gradient(
             circle,
             white,
-            #444
+            #333
           );
           animation: pulse 1.2s infinite;
         }
 
-        .voiceOverlay h2 {
-          margin-top: 26px;
-          font-size: 34px;
+        .voice {
+          flex-direction: column;
+          gap: 24px;
         }
 
         .loader {
           width: 100%;
           height: 100vh;
-          background: black;
           display: flex;
           align-items: center;
           justify-content: center;
+          background: black;
         }
 
-        .loaderOrb {
-          width: 90px;
-          height: 90px;
+        .spinner {
+          width: 80px;
+          height: 80px;
           border-radius: 50%;
           border: 5px solid #222;
           border-top: 5px solid white;
           animation: spin 1s linear infinite;
         }
 
-        @keyframes spin {
-          to {
-            transform: rotate(
-              360deg
-            );
-          }
-        }
-
         @keyframes bounce {
           50% {
-            transform: translateY(
-              -6px
-            );
+            transform: translateY(-6px);
           }
         }
 
@@ -1368,28 +1027,18 @@ body {
           }
         }
 
-        @keyframes fade {
-          from {
-            opacity: 0;
-            transform: translateY(
-              10px
-            );
-          }
-
+        @keyframes spin {
           to {
-            opacity: 1;
-            transform: translateY(
-              0
-            );
+            transform: rotate(360deg);
           }
         }
 
         @media (max-width: 900px) {
           .sidebar {
             position: fixed;
+            left: -100%;
             top: 0;
             bottom: 0;
-            left: -100%;
             transition: 0.3s;
           }
 
@@ -1397,63 +1046,30 @@ body {
             left: 0;
           }
 
-          .mobileClose {
+          .mobileOnly {
             display: flex;
-            align-items: center;
-            justify-content: center;
-            width: 40px;
-            height: 40px;
-            border-radius: 50%;
-            border: none;
-            background: #111;
-            color: white;
           }
 
-          .bgText {
-            font-size: 120px;
+          .inputArea {
+            left: 0;
+            padding-bottom: max(
+              16px,
+              env(
+                safe-area-inset-bottom
+              )
+            );
           }
 
-          .hero {
-            padding: 40px 20px 10px;
+          .hero h2 {
+            font-size: 38px;
           }
 
-          .hero h1 {
-            font-size: 36px;
+          .messages {
+            padding: 16px 12px 140px;
           }
 
-          .heroGrid {
-            grid-template-columns: 1fr;
-          }
-
-          .chatArea {
-            padding: 16px 14px 140px;
-          }
-
-          .msg {
+          .bubble {
             max-width: 100%;
-          }
-
-          .inputWrap {
-            padding: 12px;
-          }
-
-          .inputBox {
-            min-height: 64px;
-            border-radius: 24px;
-            padding: 0 10px 0 16px;
-          }
-
-          .inputBox input {
-            font-size: 16px;
-          }
-
-          .voiceOrb {
-            width: 140px;
-            height: 140px;
-          }
-
-          .voiceOverlay h2 {
-            font-size: 28px;
           }
         }
       `}</style>
