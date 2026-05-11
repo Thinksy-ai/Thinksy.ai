@@ -372,6 +372,48 @@ export default function LuminaUltra() {
 
       <section className="main">
         <header className="topbar">
+  <div className="topLeft">
+    <button
+      className="circleBtn"
+      onClick={() => setSidebar(true)}
+    >
+      <Menu size={20} strokeWidth={2.2} />
+    </button>
+  </div>
+
+  <div className="centerBrand">
+    <div className="brandRow">
+      <Sparkles
+        size={18}
+        className="brandIcon"
+      />
+
+      <span>Lumina Ultra</span>
+    </div>
+
+    <div
+      className={`status ${
+        online ? "online" : "offline"
+      }`}
+    >
+      <div className="statusDot" />
+
+      {online ? "Online" : "Offline"}
+    </div>
+  </div>
+
+  <div className="topRight">
+    <button
+      className="circleBtn"
+      onClick={createChat}
+    >
+      <PenSquare
+        size={18}
+        strokeWidth={2.2}
+      />
+    </button>
+  </div>
+</header>
           <button
             className="iconBtn"
             onClick={() =>
