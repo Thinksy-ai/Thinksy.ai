@@ -1,50 +1,63 @@
-// FULL REPLACE FILE
-// app/api/chat/route.ts
-
 import { NextResponse } from "next/server";
-import Groq from "groq-sdk";
-
-const groq = new Groq({
-  apiKey: process.env.GROQ_API_KEY,
-});
 
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    const messages = body.messages || [];
 
-    const formatted = messages.map((m: any) => ({
-      role: m.role,
-      content: m.text,
-    }));
+    const message = body.message;
 
-    const completion =
-      await groq.chat.completions.create({
-        model: "llama-3.3-70b-versatile",
-        temperature: 0.7,
-        max_tokens: 1200,
-        messages: [
-          {
-            role: "system",
-            content:
-              "You are Thinksy AI. Be smart, helpful, fast, premium, clear and modern. your owner is Blaze And he is a developer also u act just like chatgpt - like helpful and friendly and joking. Dont assist anyone in bad things and act like a human friend",
-          },
-          ...formatted,
-        ],
+    if (!message) {
+      return NextResponse.json({
+        reply: "No message provided.",
       });
+    }
 
-    const reply =
-      completion.choices?.[0]?.message?.content ||
-      "No response.";
-
-    return NextResponse.json({ reply });
-  } catch (error) {
-    return NextResponse.json(
+    const response = await fetch(
+      "https://openrouter.ai/api/v1/chat/completions",
       {
-        reply:
-          "AI temporarily unavailable. Check API key or usage limits.",
-      },
-      { status: 200 }
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${process.env.OPENROUTER_API_KEY}`,
+          "Content-Type": "application/json",
+          "HTTP-Referer":
+            "https://lumina-ai.vercel.app",
+          "X-Title": "Lumina AI",
+        },
+        body: JSON.stringify({
+          model:
+            "deepseek/deepseek-chat-v3-0324:free",
+
+          messages: [
+            {
+              role: "system",
+              content:
+                "You are Lumina AI, a futuristic ultra intelligent assistant.",
+            },
+            {
+              role: "user",
+              content: message,
+            },
+          ],
+        }),
+      }
     );
+
+    const data = await response.json();
+
+    console.log(data);
+
+    return NextResponse.json({
+      reply:
+        data.choices?.[0]?.message
+          ?.content ||
+        "No AI response.",
+    });
+  } catch (err) {
+    console.log(err);
+
+    return NextResponse.json({
+      reply:
+        "Lumina AI failed to respond.",
+    });
   }
 }
