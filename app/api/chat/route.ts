@@ -22,17 +22,23 @@ export async function POST(req: Request) {
         headers: {
           Authorization: `Bearer ${process.env.OPENROUTER_API_KEY}`,
           "Content-Type": "application/json",
+
+          // REQUIRED
+          "HTTP-Referer":
+            "https://thinksyultra.vercel.app",
+
+          // REQUIRED
+          "X-Title": "Lumina AI",
         },
 
         body: JSON.stringify({
-          model:
-            "mistralai/mistral-7b-instruct:free",
+          model: "openai/gpt-3.5-turbo",
 
           messages: [
             {
               role: "system",
               content:
-                "You are Lumina AI, a futuristic helpful assistant.",
+                "You are Lumina AI, a futuristic smart assistant.",
             },
 
             {
@@ -51,22 +57,20 @@ export async function POST(req: Request) {
     if (data.error) {
       return NextResponse.json({
         reply:
-          "API Error: " +
-          data.error.message,
+          "API Error: " + data.error.message,
       });
     }
 
     return NextResponse.json({
       reply:
-        data.choices?.[0]?.message
-          ?.content ||
+        data.choices?.[0]?.message?.content ||
         "No response generated.",
     });
   } catch (error) {
     console.log(error);
 
     return NextResponse.json({
-      reply: "Server error occurred.",
+      reply: "Server error.",
     });
   }
 }
