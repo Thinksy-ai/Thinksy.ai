@@ -32,7 +32,7 @@ export async function POST(req: Request) {
         },
 
         body: JSON.stringify({
-          model: "openai/gpt-3.5-turbo",
+          model: "google/gemma-2-9b-it:free",
 
           messages: [
             {
