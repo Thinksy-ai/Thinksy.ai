@@ -32,7 +32,7 @@ export async function POST(req: Request) {
         },
 
         body: JSON.stringify({
-          model: "meta-llama/llama-3.1-8b-instruct:free",
+          model: "openrouter/free",
 
           messages: [
             {
