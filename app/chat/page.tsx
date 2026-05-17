@@ -16,12 +16,7 @@ import {
   Settings,
   User,
   Trash2,
-  LogOut,
-  Crown,
-  X,
   Copy,
-  ThumbsUp,
-  ThumbsDown,
   Sparkles,
   MessageSquare,
   Moon,
@@ -29,13 +24,9 @@ import {
   Bot,
   Stars,
   Zap,
-  Check,
   Volume2,
-  PenSquare,
   ImageIcon,
   Clock3,
-  ChevronRight,
-  Cpu,
   Shield,
   Wand2,
   MoreVertical,
@@ -46,7 +37,6 @@ import {
   Download,
   Pin,
   Edit3,
-  FileText,
 } from "lucide-react";
 
 import { createClient } from "@supabase/supabase-js";
@@ -63,7 +53,7 @@ import "katex/dist/katex.min.css";
 
 import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
 
-import { oneDark } from "react-syntax-highlighter/dist/esm/styles/prism";
+import { oneDark } from "react-syntax-highlighter/dist/cjs/styles/prism";
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -76,8 +66,7 @@ type Message = {
   id: number;
   role: Role;
   text: string;
-  time?: string;
-  edited?: boolean;
+  time: string;
 };
 
 type Chat = {
@@ -86,11 +75,6 @@ type Chat = {
   pinned?: boolean;
   project?: string;
   messages: Message[];
-};
-
-type Project = {
-  id: number;
-  name: string;
 };
 
 export default function ThinksyUltra() {
@@ -117,9 +101,6 @@ export default function ThinksyUltra() {
   const [input, setInput] =
     useState("");
 
-  const [user, setUser] =
-    useState<any>(null);
-
   const [darkMode, setDarkMode] =
     useState(true);
 
@@ -129,51 +110,54 @@ export default function ThinksyUltra() {
   const [menuOpen, setMenuOpen] =
     useState(false);
 
-  const [memoryMode, setMemoryMode] =
-    useState(true);
-
   const [currentChat, setCurrentChat] =
     useState(0);
 
-  const [projects, setProjects] =
-    useState<Project[]>([
-      {
-        id: 1,
-        name: "Personal",
-      },
-      {
-        id: 2,
-        name: "Coding",
-      },
-    ]);
+  const [projects] = useState([
+    {
+      id: 1,
+      name: "Personal",
+    },
+    {
+      id: 2,
+      name: "Coding",
+    },
+  ]);
 
   const [chats, setChats] =
-    useState<Chat[]>([
-      {
-        id: 1,
-        title: "Welcome",
-        pinned: true,
-        project: "Personal",
-        messages: [],
-      },
-    ]);
+    useState<Chat[]>([]);
 
   useEffect(() => {
-    async function checkUser() {
-      const {
-        data: { session },
-      } =
-        await supabase.auth.getSession();
+    const saved =
+      localStorage.getItem(
+        "thinksy_chats"
+      );
 
-      if (session) {
-        setUser(session.user);
-      }
-
-      setLoading(false);
+    if (saved) {
+      setChats(JSON.parse(saved));
+    } else {
+      setChats([
+        {
+          id: Date.now(),
+          title: "Welcome",
+          pinned: true,
+          project: "Personal",
+          messages: [],
+        },
+      ]);
     }
 
-    checkUser();
+    setLoading(false);
   }, []);
+
+  useEffect(() => {
+    if (!loading) {
+      localStorage.setItem(
+        "thinksy_chats",
+        JSON.stringify(chats)
+      );
+    }
+  }, [chats, loading]);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({
@@ -181,42 +165,12 @@ export default function ThinksyUltra() {
     });
   }, [typing, chats]);
 
-  useEffect(() => {
-    const handlePaste = (
-      e: ClipboardEvent
-    ) => {
-      const items =
-        e.clipboardData?.items;
-
-      if (!items) return;
-
-      for (const item of items) {
-        if (
-          item.type.includes("image")
-        ) {
-          toast("Image pasted");
-        }
-      }
-    };
-
-    window.addEventListener(
-      "paste",
-      handlePaste
-    );
-
-    return () =>
-      window.removeEventListener(
-        "paste",
-        handlePaste
-      );
-  }, []);
-
   function toast(text: string) {
     setPopup(text);
 
     setTimeout(() => {
       setPopup("");
-    }, 2200);
+    }, 2000);
   }
 
   function getTime() {
@@ -243,8 +197,6 @@ export default function ThinksyUltra() {
     ]);
 
     setCurrentChat(0);
-
-    toast("New chat created");
   }
 
   function deleteChat(id: number) {
@@ -255,29 +207,39 @@ export default function ThinksyUltra() {
     setChats(filtered);
 
     setCurrentChat(0);
-
-    toast("Chat deleted");
   }
 
-  function pinChat(id: number) {
-    setChats((prev) =>
-      prev.map((chat) =>
-        chat.id === id
-          ? {
-              ...chat,
-              pinned: !chat.pinned,
-            }
-          : chat
-      )
-    );
+  function updateWorkingMemory(
+    userText: string,
+    aiText: string
+  ) {
+    const existing =
+      localStorage.getItem(
+        "thinksy_memory"
+      ) || "";
 
-    toast("Chat updated");
+    const updated = `
+${existing}
+
+USER: ${userText}
+
+AI: ${aiText}
+`;
+
+    localStorage.setItem(
+      "thinksy_memory",
+      updated.slice(-12000)
+    );
   }
 
   async function sendMessage() {
     if (!input.trim()) return;
 
     const userText = input;
+
+    setInput("");
+
+    setTyping(true);
 
     const userMessage: Message = {
       id: Date.now(),
@@ -286,27 +248,39 @@ export default function ThinksyUltra() {
       time: getTime(),
     };
 
-    const updatedChats = [...chats];
+    const updatedChats = chats.map(
+      (chat, i) => {
+        if (i !== currentChat)
+          return chat;
 
-    updatedChats[currentChat].messages.push(
-      userMessage
+        return {
+          ...chat,
+          title:
+            chat.title === "New Chat"
+              ? userText.slice(0, 30)
+              : chat.title,
+
+          messages: [
+            ...chat.messages,
+            userMessage,
+          ],
+        };
+      }
     );
-
-    if (
-      updatedChats[currentChat].title ===
-      "New Chat"
-    ) {
-      updatedChats[currentChat].title =
-        userText.slice(0, 30);
-    }
 
     setChats(updatedChats);
 
-    setInput("");
-
-    setTyping(true);
-
     try {
+      const history =
+        updatedChats[
+          currentChat
+        ].messages.slice(-15);
+
+      const memory =
+        localStorage.getItem(
+          "thinksy_memory"
+        ) || "";
+
       const response = await fetch(
         "/api/chat",
         {
@@ -319,20 +293,8 @@ export default function ThinksyUltra() {
 
           body: JSON.stringify({
             message: userText,
-
-            history:
-              updatedChats[
-                currentChat
-              ].messages,
-
-            memory: memoryMode
-              ? `
-User likes futuristic design.
-User likes long answers.
-User likes coding.
-User likes AI tools.
-`
-              : "",
+            history,
+            memory,
           }),
         }
       );
@@ -340,29 +302,38 @@ User likes AI tools.
       const data =
         await response.json();
 
-      updatedChats[
-        currentChat
-      ].messages.push({
+      const aiText =
+        data.reply ||
+        "No response.";
+
+      const aiMessage: Message = {
         id: Date.now() + 1,
         role: "assistant",
-        text:
-          data.reply ||
-          "No response generated.",
+        text: aiText,
         time: getTime(),
-      });
+      };
 
-      setChats([...updatedChats]);
+      setChats((prev) =>
+        prev.map((chat, i) => {
+          if (i !== currentChat)
+            return chat;
+
+          return {
+            ...chat,
+            messages: [
+              ...chat.messages,
+              aiMessage,
+            ],
+          };
+        })
+      );
+
+      updateWorkingMemory(
+        userText,
+        aiText
+      );
     } catch {
-      updatedChats[
-        currentChat
-      ].messages.push({
-        id: Date.now() + 2,
-        role: "assistant",
-        text: "Connection failed.",
-        time: getTime(),
-      });
-
-      setChats([...updatedChats]);
+      toast("Connection failed");
     }
 
     setTyping(false);
@@ -377,8 +348,6 @@ User likes AI tools.
     speechSynthesis.speak(
       utterance
     );
-
-    toast("Reading message");
   }
 
   function startVoice() {
@@ -387,8 +356,7 @@ User likes AI tools.
         .webkitSpeechRecognition;
 
     if (!SpeechRecognition) {
-      toast("Voice unsupported");
-
+      toast("Unsupported");
       return;
     }
 
@@ -412,36 +380,6 @@ User likes AI tools.
     );
 
     toast("Copied");
-  }
-
-  function exportChat() {
-    const text =
-      chats[
-        currentChat
-      ].messages
-        .map(
-          (m) =>
-            `${m.role}: ${m.text}`
-        )
-        .join("\n\n");
-
-    const blob = new Blob([text], {
-      type: "text/plain",
-    });
-
-    const url =
-      URL.createObjectURL(blob);
-
-    const a =
-      document.createElement("a");
-
-    a.href = url;
-
-    a.download = "chat.txt";
-
-    a.click();
-
-    toast("Chat exported");
   }
 
   const filteredChats = useMemo(() => {
@@ -492,7 +430,7 @@ User likes AI tools.
           <Search size={16} />
 
           <input
-            placeholder="Search chats..."
+            placeholder="Search..."
             value={search}
             onChange={(e) =>
               setSearch(
@@ -519,44 +457,25 @@ User likes AI tools.
             (chat) => (
               <div
                 key={chat.id}
-                className={`historyItem ${
-                  chats[currentChat]
-                    ?.id === chat.id
-                    ? "active"
-                    : ""
-                }`}
+                className="historyItem"
               >
                 <button
                   className="historySelect"
-                  onClick={() => {
-                    const index =
+                  onClick={() =>
+                    setCurrentChat(
                       chats.findIndex(
                         (c) =>
                           c.id ===
                           chat.id
-                      );
-
-                    setCurrentChat(
-                      index
-                    );
-                  }}
-                >
-                  <MessageSquare
-                    size={16}
-                  />
-
-                  <span>
-                    {chat.title}
-                  </span>
-                </button>
-
-                <button
-                  className="mini"
-                  onClick={() =>
-                    pinChat(chat.id)
+                      )
+                    )
                   }
                 >
-                  <Pin size={14} />
+                  <MessageSquare
+                    size={15}
+                  />
+
+                  {chat.title}
                 </button>
 
                 <button
@@ -598,62 +517,56 @@ User likes AI tools.
             </div>
           </div>
 
-          <div className="topActions">
-            <button
-              className="circleBtn"
-              onClick={() =>
-                setMenuOpen(
-                  !menuOpen
-                )
-              }
-            >
-              <MoreVertical
-                size={18}
-              />
-            </button>
+          <button
+            className="circleBtn"
+            onClick={() =>
+              setMenuOpen(
+                !menuOpen
+              )
+            }
+          >
+            <MoreVertical
+              size={18}
+            />
+          </button>
 
-            {menuOpen && (
-              <div className="menu">
-                <button
-                  onClick={
-                    exportChat
-                  }
-                >
-                  <Download
-                    size={16}
-                  />
-                  Export
-                </button>
+          {menuOpen && (
+            <div className="menu">
+              <button>
+                <Download
+                  size={16}
+                />
+                Export
+              </button>
 
-                <button>
-                  <Share2
-                    size={16}
-                  />
-                  Share
-                </button>
+              <button>
+                <Share2
+                  size={16}
+                />
+                Share
+              </button>
 
-                <button
-                  onClick={() =>
-                    setSettingsOpen(
-                      true
-                    )
-                  }
-                >
-                  <Settings
-                    size={16}
-                  />
-                  Settings
-                </button>
+              <button
+                onClick={() =>
+                  setSettingsOpen(
+                    true
+                  )
+                }
+              >
+                <Settings
+                  size={16}
+                />
+                Settings
+              </button>
 
-                <button>
-                  <RotateCcw
-                    size={16}
-                  />
-                  Regenerate
-                </button>
-              </div>
-            )}
-          </div>
+              <button>
+                <RotateCcw
+                  size={16}
+                />
+                Regenerate
+              </button>
+            </div>
+          )}
         </header>
 
         {chats[currentChat]
@@ -662,7 +575,7 @@ User likes AI tools.
           <div className="hero">
             <div className="heroBadge">
               <Stars size={15} />
-              Futuristic AI Workspace
+              Futuristic AI
             </div>
 
             <h1>
@@ -674,22 +587,21 @@ User likes AI tools.
             </h1>
 
             <p>
-              Coding, research,
-              writing, memory,
-              markdown, LaTeX,
-              projects and advanced
-              AI tools.
+              Smart AI with memory,
+              markdown, code,
+              LaTeX, projects and
+              ultra-fast responses.
             </p>
 
             <div className="heroGrid">
               <div className="heroCard">
                 <Zap size={20} />
-                Ultra Fast
+                Fast
               </div>
 
               <div className="heroCard">
                 <Bot size={20} />
-                Smart Memory
+                Memory
               </div>
 
               <div className="heroCard">
@@ -760,7 +672,6 @@ User likes AI tools.
                       const {
                         children,
                         className,
-                        ...rest
                       } = props;
 
                       const match =
@@ -771,7 +682,6 @@ User likes AI tools.
 
                       return match ? (
                         <SyntaxHighlighter
-                          PreTag="div"
                           language={
                             match[1]
                           }
@@ -787,12 +697,7 @@ User likes AI tools.
                           )}
                         </SyntaxHighlighter>
                       ) : (
-                        <code
-                          className={
-                            className
-                          }
-                          {...rest}
-                        >
+                        <code>
                           {
                             children
                           }
@@ -828,18 +733,6 @@ User likes AI tools.
                     }
                   >
                     <Volume2
-                      size={14}
-                    />
-                  </button>
-
-                  <button>
-                    <ThumbsUp
-                      size={14}
-                    />
-                  </button>
-
-                  <button>
-                    <ThumbsDown
                       size={14}
                     />
                   </button>
@@ -902,7 +795,7 @@ User likes AI tools.
                 }
               >
                 <Paperclip
-                  size={17}
+                  size={16}
                 />
               </button>
 
@@ -910,12 +803,12 @@ User likes AI tools.
                 className="miniBtn"
                 onClick={startVoice}
               >
-                <Mic size={17} />
+                <Mic size={16} />
               </button>
 
               <button className="miniBtn">
                 <ImageIcon
-                  size={17}
+                  size={16}
                 />
               </button>
 
@@ -923,597 +816,12 @@ User likes AI tools.
                 className="sendBtn"
                 onClick={sendMessage}
               >
-                <Send size={17} />
+                <Send size={16} />
               </button>
             </div>
-          </div>
-
-          <div className="footer">
-            <span>
-              Memory:
-              {memoryMode
-                ? " ON"
-                : " OFF"}
-            </span>
-
-            <button
-              onClick={() =>
-                setMemoryMode(
-                  !memoryMode
-                )
-              }
-            >
-              Toggle
-            </button>
           </div>
         </div>
       </section>
-
-      {settingsOpen && (
-        <div className="overlay">
-          <div className="panel">
-            <div className="panelTop">
-              <h2>Settings</h2>
-
-              <button
-                onClick={() =>
-                  setSettingsOpen(
-                    false
-                  )
-                }
-              >
-                <X size={18} />
-              </button>
-            </div>
-
-            <div className="setting">
-              <span>
-                Dark Mode
-              </span>
-
-              <button
-                onClick={() =>
-                  setDarkMode(
-                    !darkMode
-                  )
-                }
-              >
-                {darkMode ? (
-                  <Moon
-                    size={16}
-                  />
-                ) : (
-                  <Sun
-                    size={16}
-                  />
-                )}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {popup && (
-        <div className="toast">
-          {popup}
-        </div>
-      )}
-
-      <style jsx global>{`
-        * {
-          margin: 0;
-          padding: 0;
-          box-sizing: border-box;
-        }
-
-        body {
-          font-family: Inter,
-            sans-serif;
-          background: #000;
-        }
-
-        .app {
-          display: flex;
-          min-height: 100vh;
-          color: white;
-        }
-
-        .dark {
-          background: #000;
-        }
-
-        .light {
-          background: #f5f5f5;
-          color: black;
-        }
-
-        .sidebar {
-          width: 290px;
-          border-right: 1px solid
-            #1a1a1a;
-          padding: 18px;
-          display: flex;
-          flex-direction: column;
-          background: rgba(
-            0,
-            0,
-            0,
-            0.95
-          );
-        }
-
-        .logo {
-          display: flex;
-          align-items: center;
-          gap: 10px;
-          font-size: 22px;
-          font-weight: 800;
-        }
-
-        .newChatBtn {
-          height: 54px;
-          border-radius: 18px;
-          border: none;
-          background: white;
-          color: black;
-          margin-top: 20px;
-          font-weight: 700;
-        }
-
-        .searchBox {
-          height: 52px;
-          border-radius: 18px;
-          background: #101010;
-          margin-top: 16px;
-          display: flex;
-          align-items: center;
-          padding: 0 16px;
-          gap: 10px;
-        }
-
-        .searchBox input {
-          flex: 1;
-          background: transparent;
-          border: none;
-          outline: none;
-          color: white;
-        }
-
-        .projects {
-          margin-top: 20px;
-          display: flex;
-          flex-direction: column;
-          gap: 10px;
-        }
-
-        .project {
-          height: 48px;
-          border-radius: 14px;
-          background: #101010;
-          display: flex;
-          align-items: center;
-          gap: 10px;
-          padding: 0 14px;
-        }
-
-        .history {
-          flex: 1;
-          overflow-y: auto;
-          margin-top: 20px;
-        }
-
-        .historyItem {
-          display: flex;
-          gap: 8px;
-          margin-bottom: 10px;
-        }
-
-        .historySelect {
-          flex: 1;
-          height: 50px;
-          border-radius: 14px;
-          background: #111;
-          border: none;
-          color: white;
-          display: flex;
-          align-items: center;
-          gap: 10px;
-          padding: 0 14px;
-        }
-
-        .mini {
-          width: 42px;
-          border-radius: 14px;
-          background: #111;
-          border: none;
-          color: white;
-        }
-
-        .main {
-          flex: 1;
-          display: flex;
-          flex-direction: column;
-          position: relative;
-        }
-
-        .topbar {
-          height: 72px;
-          border-bottom: 1px solid
-            #141414;
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          padding: 0 18px;
-        }
-
-        .circleBtn {
-          width: 46px;
-          height: 46px;
-          border-radius: 50%;
-          border: none;
-          background: #111;
-          color: white;
-        }
-
-        .topTitle {
-          text-align: center;
-        }
-
-        .topTitle span {
-          font-size: 22px;
-          font-weight: 800;
-        }
-
-        .status {
-          font-size: 12px;
-          color: #4ade80;
-        }
-
-        .menu {
-          position: absolute;
-          right: 20px;
-          top: 80px;
-          background: #0f0f0f;
-          border: 1px solid #222;
-          border-radius: 18px;
-          width: 220px;
-          overflow: hidden;
-        }
-
-        .menu button {
-          width: 100%;
-          height: 50px;
-          border: none;
-          background: transparent;
-          color: white;
-          display: flex;
-          align-items: center;
-          gap: 10px;
-          padding: 0 16px;
-        }
-
-        .hero {
-          padding: 60px 30px;
-        }
-
-        .hero h1 {
-          font-size: 74px;
-          line-height: 0.95;
-          font-weight: 900;
-          margin-top: 20px;
-        }
-
-        .hero p {
-          margin-top: 20px;
-          color: #999;
-          max-width: 700px;
-          line-height: 1.8;
-        }
-
-        .heroBadge {
-          width: fit-content;
-          padding: 10px 16px;
-          border-radius: 999px;
-          background: #111;
-          display: flex;
-          gap: 8px;
-          align-items: center;
-        }
-
-        .heroGrid {
-          display: grid;
-          grid-template-columns: repeat(
-            2,
-            1fr
-          );
-          gap: 16px;
-          margin-top: 30px;
-          max-width: 700px;
-        }
-
-        .heroCard {
-          min-height: 120px;
-          border-radius: 22px;
-          background: #101010;
-          border: 1px solid #1b1b1b;
-          padding: 22px;
-          display: flex;
-          flex-direction: column;
-          justify-content: center;
-          gap: 10px;
-        }
-
-        .chatArea {
-          flex: 1;
-          overflow-y: auto;
-          padding: 20px 24px 170px;
-        }
-
-        .msg {
-          max-width: 900px;
-          padding: 22px;
-          border-radius: 24px;
-          margin-bottom: 18px;
-        }
-
-        .msg.ai {
-          background: #0d0d0d;
-          border: 1px solid #1a1a1a;
-        }
-
-        .msg.user {
-          margin-left: auto;
-          background: white;
-          color: black;
-        }
-
-        .msgTop {
-          display: flex;
-          justify-content: space-between;
-          margin-bottom: 14px;
-        }
-
-        .msgUser {
-          display: flex;
-          align-items: center;
-          gap: 8px;
-          font-weight: 700;
-        }
-
-        .msgTime {
-          display: flex;
-          align-items: center;
-          gap: 6px;
-          font-size: 12px;
-          opacity: 0.7;
-        }
-
-        .markdown {
-          line-height: 1.9;
-        }
-
-        .markdown pre {
-          border-radius: 18px;
-          overflow: auto;
-          margin-top: 18px;
-        }
-
-        .markdown code {
-          font-size: 14px;
-        }
-
-        .markdown h1,
-        .markdown h2,
-        .markdown h3 {
-          margin-top: 18px;
-          margin-bottom: 10px;
-        }
-
-        .markdown ul {
-          padding-left: 22px;
-        }
-
-        .msgActions {
-          display: flex;
-          gap: 10px;
-          margin-top: 18px;
-        }
-
-        .msgActions button {
-          width: 40px;
-          height: 40px;
-          border-radius: 50%;
-          border: none;
-          background: #111;
-          color: white;
-        }
-
-        .typing {
-          display: flex;
-          gap: 8px;
-          padding: 20px;
-        }
-
-        .typing span {
-          width: 10px;
-          height: 10px;
-          border-radius: 50%;
-          background: white;
-          animation: bounce 1s infinite;
-        }
-
-        .inputWrap {
-          position: fixed;
-          bottom: 0;
-          left: 290px;
-          right: 0;
-          padding: 18px;
-          background: linear-gradient(
-            to top,
-            rgba(0, 0, 0, 0.98),
-            transparent
-          );
-        }
-
-        .inputBox {
-          max-width: 980px;
-          margin: auto;
-          border-radius: 28px;
-          background: #0d0d0d;
-          border: 1px solid #1b1b1b;
-          padding: 16px;
-        }
-
-        .inputBox textarea {
-          width: 100%;
-          min-height: 70px;
-          resize: none;
-          background: transparent;
-          border: none;
-          outline: none;
-          color: white;
-          font-size: 16px;
-        }
-
-        .inputButtons {
-          display: flex;
-          justify-content: flex-end;
-          gap: 10px;
-          margin-top: 12px;
-        }
-
-        .miniBtn,
-        .sendBtn {
-          width: 46px;
-          height: 46px;
-          border-radius: 50%;
-          border: none;
-        }
-
-        .miniBtn {
-          background: #111;
-          color: white;
-        }
-
-        .sendBtn {
-          background: white;
-          color: black;
-        }
-
-        .footer {
-          margin-top: 12px;
-          text-align: center;
-          color: #777;
-          font-size: 12px;
-        }
-
-        .overlay {
-          position: fixed;
-          inset: 0;
-          background: rgba(
-            0,
-            0,
-            0,
-            0.7
-          );
-          display: flex;
-          align-items: center;
-          justify-content: center;
-        }
-
-        .panel {
-          width: 400px;
-          background: #0b0b0b;
-          border-radius: 24px;
-          padding: 24px;
-          border: 1px solid #1c1c1c;
-        }
-
-        .panelTop {
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-        }
-
-        .setting {
-          margin-top: 24px;
-          display: flex;
-          justify-content: space-between;
-        }
-
-        .toast {
-          position: fixed;
-          bottom: 30px;
-          left: 50%;
-          transform: translateX(-50%);
-          background: white;
-          color: black;
-          padding: 14px 24px;
-          border-radius: 999px;
-          font-weight: 700;
-        }
-
-        .loader {
-          width: 100%;
-          height: 100vh;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          background: black;
-        }
-
-        .loaderOrb {
-          width: 90px;
-          height: 90px;
-          border-radius: 50%;
-          border: 5px solid #222;
-          border-top: 5px solid white;
-          animation: spin 1s linear infinite;
-        }
-
-        @keyframes spin {
-          to {
-            transform: rotate(
-              360deg
-            );
-          }
-        }
-
-        @keyframes bounce {
-          50% {
-            transform: translateY(
-              -6px
-            );
-          }
-        }
-
-        @media (max-width: 900px) {
-          .sidebar {
-            position: fixed;
-            left: -100%;
-            top: 0;
-            bottom: 0;
-            z-index: 100;
-            transition: 0.3s;
-          }
-
-          .sidebar.show {
-            left: 0;
-          }
-
-          .inputWrap {
-            left: 0;
-          }
-
-          .hero h1 {
-            font-size: 48px;
-          }
-
-          .heroGrid {
-            grid-template-columns: 1fr;
-          }
-        }
-      `}</style>
     </main>
   );
 }
