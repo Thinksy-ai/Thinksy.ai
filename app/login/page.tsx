@@ -1,359 +1,180 @@
 "use client";
 
-/*
-FULL REPLACE FILE
-app/page.tsx
-
-Thinksy Phase 19 Core Chat Window
-- Auth check
-- Redirect if not logged in
-- Real API chat call (/api/chat)
-- New chat works
-- Search works
-- Sidebar close works
-- Chat history works
-- Logout works
-- Mobile ready
-- Premium black UI
-*/
-
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { supabase } from "../../lib/supabase";
 import {
-  Menu,
-  X,
-  Search,
-  Plus,
-  Send,
-  LogOut,
-  MessageSquare,
-  Trash2,
+  Mail,
+  Lock,
+  Eye,
+  EyeOff,
+  ArrowRight,
 } from "lucide-react";
 
-type Role = "user" | "assistant";
-
-type Msg = {
-  role: Role;
-  text: string;
-};
-
-type Chat = {
-  id: number;
-  title: string;
-  messages: Msg[];
-};
-
-export default function Home() {
+export default function LoginPage() {
   const router = useRouter();
-  const inputRef = useRef<HTMLInputElement>(null);
 
-  const [ready, setReady] = useState(false);
-  const [menu, setMenu] = useState(false);
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+
+  const [showPass, setShowPass] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [typing, setTyping] = useState(false);
+  const [error, setError] = useState("");
 
-  const [search, setSearch] = useState("");
-  const [input, setInput] = useState("");
+  async function login() {
+    setError("");
 
-  const [chats, setChats] = useState<Chat[]>([]);
-  const [activeId, setActiveId] = useState<number>(1);
-
-  /* ---------------- AUTH CHECK ---------------- */
-  useEffect(() => {
-    const user = localStorage.getItem("thinksy_user");
-
-    if (!user) {
-      router.push("/login");
+    if (!email || !password) {
+      setError("Fill all fields.");
       return;
     }
-
-    const saved = localStorage.getItem("thinksy_chats");
-
-    if (saved) {
-      setChats(JSON.parse(saved));
-    } else {
-      const first: Chat[] = [
-        {
-          id: 1,
-          title: "New Chat",
-          messages: [
-            {
-              role: "assistant",
-              text: "Welcome to Thinksy. Ask anything.",
-            },
-          ],
-        },
-      ];
-
-      setChats(first);
-      localStorage.setItem("thinksy_chats", JSON.stringify(first));
-    }
-
-    setReady(true);
-  }, [router]);
-
-  useEffect(() => {
-    if (ready) {
-      localStorage.setItem("thinksy_chats", JSON.stringify(chats));
-    }
-  }, [chats, ready]);
-
-  const activeChat =
-    chats.find((chat) => chat.id === activeId) || chats[0];
-
-  /* ---------------- NEW CHAT ---------------- */
-  function newChat() {
-    const id = Date.now();
-
-    const fresh: Chat = {
-      id,
-      title: "New Chat",
-      messages: [
-        {
-          role: "assistant",
-          text: "Fresh chat ready.",
-        },
-      ],
-    };
-
-    setChats((prev) => [fresh, ...prev]);
-    setActiveId(id);
-    setMenu(false);
-
-    setTimeout(() => {
-      inputRef.current?.focus();
-    }, 100);
-  }
-
-  /* ---------------- DELETE CHAT ---------------- */
-  function deleteChat(id: number) {
-    const updated = chats.filter((c) => c.id !== id);
-
-    if (updated.length === 0) {
-      newChat();
-      return;
-    }
-
-    setChats(updated);
-    setActiveId(updated[0].id);
-  }
-
-  /* ---------------- LOGOUT ---------------- */
-  function logout() {
-    localStorage.removeItem("thinksy_user");
-    router.push("/login");
-  }
-
-  /* ---------------- SEND ---------------- */
-  async function sendMessage() {
-    const text = input.trim();
-    if (!text || !activeChat || loading) return;
-
-    const userMsg: Msg = {
-      role: "user",
-      text,
-    };
-
-    const updatedMessages = [...activeChat.messages, userMsg];
-
-    const updatedChats = chats.map((chat) =>
-      chat.id === activeId
-        ? {
-            ...chat,
-            title:
-              chat.title === "New Chat"
-                ? text.slice(0, 25)
-                : chat.title,
-            messages: updatedMessages,
-          }
-        : chat
-    );
-
-    setChats(updatedChats);
-    setInput("");
-    setTyping(true);
-    setLoading(true);
 
     try {
-      const res = await fetch("/api/chat", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          messages: updatedMessages,
-        }),
-      });
+      setLoading(true);
 
-      const data = await res.json();
+      const { error } =
+        await supabase.auth.signInWithPassword({
+          email,
+          password,
+        });
 
-      const aiMsg: Msg = {
-        role: "assistant",
-        text:
-          data.reply ||
-          "Unable to generate response right now.",
-      };
+      if (error) {
+        setError(error.message);
+        setLoading(false);
+        return;
+      }
 
-      setChats((prev) =>
-        prev.map((chat) =>
-          chat.id === activeId
-            ? {
-                ...chat,
-                messages: [...chat.messages, aiMsg],
-              }
-            : chat
-        )
-      );
+      router.push("/");
     } catch {
-      setChats((prev) =>
-        prev.map((chat) =>
-          chat.id === activeId
-            ? {
-                ...chat,
-                messages: [
-                  ...chat.messages,
-                  {
-                    role: "assistant",
-                    text: "Connection error.",
-                  },
-                ],
-              }
-            : chat
-        )
-      );
+      setError("Login failed.");
+    } finally {
+      setLoading(false);
     }
-
-    setTyping(false);
-    setLoading(false);
   }
 
-  /* ---------------- SEARCH ---------------- */
-  const filteredChats = chats.filter((chat) =>
-    chat.title.toLowerCase().includes(search.toLowerCase())
-  );
-
-  if (!ready) return null;
+  async function googleLogin() {
+    await supabase.auth.signInWithOAuth({
+      provider: "google",
+      options: {
+        redirectTo:
+          window.location.origin,
+      },
+    });
+  }
 
   return (
-    <main className="app">
-      {/* SIDEBAR */}
-      <aside className={`sidebar ${menu ? "show" : ""}`}>
-        <div className="sideTop">
-          <div className="logo">Thinksy</div>
-
-          <button
-            className="iconBtn mobileOnly"
-            onClick={() => setMenu(false)}
-          >
-            <X size={18} />
-          </button>
+    <main className="loginWrap">
+      {/* LEFT SIDE */}
+      <section className="leftPanel">
+        <div className="brandBox">
+          <div className="logoGlow" />
+          <h1>Thinksy</h1>
+          <p>
+            Intelligent chat.
+            Premium experience.
+          </p>
         </div>
+      </section>
 
-        <button className="newBtn" onClick={newChat}>
-          <Plus size={18} />
-          New Chat
-        </button>
+      {/* RIGHT SIDE */}
+      <section className="rightPanel">
+        <div className="card">
+          <h2>Welcome back</h2>
+          <p className="sub">
+            Login to continue
+          </p>
 
-        <div className="searchWrap">
-          <Search size={16} />
-          <input
-            placeholder="Search chats"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-          />
-        </div>
-
-        <div className="chatList">
-          {filteredChats.map((chat) => (
-            <div
-              key={chat.id}
-              className={`chatItem ${
-                activeId === chat.id ? "active" : ""
-              }`}
-            >
-              <button
-                className="chatSelect"
-                onClick={() => {
-                  setActiveId(chat.id);
-                  setMenu(false);
-                }}
-              >
-                <MessageSquare size={16} />
-                <span>{chat.title}</span>
-              </button>
-
-              <button
-                className="trashBtn"
-                onClick={() => deleteChat(chat.id)}
-              >
-                <Trash2 size={14} />
-              </button>
-            </div>
-          ))}
-        </div>
-
-        <button className="logoutBtn" onClick={logout}>
-          <LogOut size={16} />
-          Logout
-        </button>
-      </aside>
-
-      {/* MAIN */}
-      <section className="main">
-        <header className="topbar">
-          <button
-            className="iconBtn"
-            onClick={() => setMenu(true)}
-          >
-            <Menu size={18} />
-          </button>
-
-          <div className="title">
-            {activeChat?.title || "Thinksy"}
-          </div>
-
-          <div />
-        </header>
-
-        {/* CHAT AREA */}
-        <div className="chatArea">
-          {activeChat?.messages.map((msg, i) => (
-            <div
-              key={i}
-              className={`bubble ${
-                msg.role === "user" ? "user" : "ai"
-              }`}
-            >
-              {msg.text}
-            </div>
-          ))}
-
-          {typing && (
-            <div className="bubble ai">
-              Thinking...
+          {error && (
+            <div className="error">
+              {error}
             </div>
           )}
-        </div>
 
-        {/* INPUT */}
-        <div className="inputWrap">
-          <div className="inputBox">
+          {/* EMAIL */}
+          <div className="field">
+            <Mail size={18} />
             <input
-              ref={inputRef}
-              placeholder="Ask anything..."
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              onKeyDown={(e) =>
-                e.key === "Enter" && sendMessage()
+              type="email"
+              placeholder="Email address"
+              value={email}
+              onChange={(e) =>
+                setEmail(
+                  e.target.value
+                )
+              }
+            />
+          </div>
+
+          {/* PASSWORD */}
+          <div className="field">
+            <Lock size={18} />
+            <input
+              type={
+                showPass
+                  ? "text"
+                  : "password"
+              }
+              placeholder="Password"
+              value={password}
+              onChange={(e) =>
+                setPassword(
+                  e.target.value
+                )
               }
             />
 
             <button
-              className="sendBtn"
-              onClick={sendMessage}
+              className="eyeBtn"
+              onClick={() =>
+                setShowPass(
+                  !showPass
+                )
+              }
             >
-              <Send size={18} />
+              {showPass ? (
+                <EyeOff
+                  size={18}
+                />
+              ) : (
+                <Eye size={18} />
+              )}
             </button>
+          </div>
+
+          {/* LOGIN */}
+          <button
+            className="mainBtn"
+            onClick={login}
+            disabled={loading}
+          >
+            {loading
+              ? "Please wait..."
+              : "Login"}
+            <ArrowRight size={18} />
+          </button>
+
+          {/* GOOGLE */}
+          <button
+            className="googleBtn"
+            onClick={
+              googleLogin
+            }
+          >
+            Continue with Google
+          </button>
+
+          {/* SIGNUP */}
+          <div className="bottomText">
+            New here?{" "}
+            <span
+              onClick={() =>
+                router.push(
+                  "/signup"
+                )
+              }
+            >
+              Create account
+            </span>
           </div>
         </div>
       </section>
@@ -366,205 +187,204 @@ export default function Home() {
         }
 
         body {
+          font-family: Inter,
+            sans-serif;
           background: #000;
           color: #fff;
-          font-family: Inter, sans-serif;
         }
 
-        .app {
-          height: 100vh;
+        .loginWrap {
+          min-height: 100vh;
           display: flex;
-          background: #000;
+          background:
+            radial-gradient(
+              circle at top left,
+              #111,
+              #000 45%
+            );
         }
 
-        .sidebar {
-          width: 290px;
-          background: #0b0b0b;
-          border-right: 1px solid #171717;
-          padding: 14px;
-          display: flex;
-          flex-direction: column;
-        }
-
-        .sideTop,
-        .chatItem,
-        .chatSelect,
-        .topbar,
-        .inputBox {
-          display: flex;
-          align-items: center;
-        }
-
-        .sideTop,
-        .topbar {
-          justify-content: space-between;
-        }
-
-        .logo {
-          font-size: 22px;
-          font-weight: 800;
-        }
-
-        .iconBtn,
-        .sendBtn,
-        .trashBtn {
-          width: 42px;
-          height: 42px;
-          border: none;
-          border-radius: 12px;
-          background: #151515;
-          color: #fff;
-        }
-
-        .newBtn,
-        .logoutBtn {
-          height: 48px;
-          border: none;
-          border-radius: 14px;
-          background: #fff;
-          color: #000;
-          font-weight: 700;
+        .leftPanel {
+          flex: 1;
           display: flex;
           align-items: center;
           justify-content: center;
-          gap: 10px;
-          margin-top: 14px;
+          padding: 40px;
+          border-right: 1px solid
+            #151515;
         }
 
-        .logoutBtn {
-          margin-top: auto;
-          background: #151515;
-          color: #fff;
+        .brandBox {
+          max-width: 420px;
         }
 
-        .searchWrap {
-          height: 46px;
-          margin-top: 14px;
-          background: #121212;
-          border-radius: 14px;
-          padding: 0 12px;
+        .logoGlow {
+          width: 84px;
+          height: 84px;
+          border-radius: 50%;
+          background:
+            radial-gradient(
+              circle,
+              #fff,
+              #444
+            );
+          margin-bottom: 24px;
+          box-shadow: 0 0 40px
+            rgba(
+              255,
+              255,
+              255,
+              0.1
+            );
+        }
+
+        .brandBox h1 {
+          font-size: 52px;
+          font-weight: 800;
+          margin-bottom: 12px;
+        }
+
+        .brandBox p {
+          color: #9c9c9c;
+          font-size: 18px;
+          line-height: 1.6;
+        }
+
+        .rightPanel {
+          width: 520px;
           display: flex;
           align-items: center;
-          gap: 10px;
+          justify-content: center;
+          padding: 30px;
         }
 
-        .searchWrap input,
-        .inputBox input {
+        .card {
+          width: 100%;
+          background: #090909;
+          border: 1px solid
+            #1a1a1a;
+          border-radius: 28px;
+          padding: 34px;
+        }
+
+        .card h2 {
+          font-size: 34px;
+          margin-bottom: 8px;
+        }
+
+        .sub {
+          color: #8b8b8b;
+          margin-bottom: 24px;
+        }
+
+        .error {
+          background: #170909;
+          border: 1px solid
+            #401414;
+          color: #ff8b8b;
+          padding: 12px;
+          border-radius: 14px;
+          margin-bottom: 16px;
+          font-size: 14px;
+        }
+
+        .field {
+          height: 58px;
+          border-radius: 18px;
+          background: #111;
+          border: 1px solid
+            #1d1d1d;
+          display: flex;
+          align-items: center;
+          gap: 12px;
+          padding: 0 16px;
+          margin-bottom: 14px;
+        }
+
+        .field input {
           flex: 1;
           background: transparent;
           border: none;
           outline: none;
           color: #fff;
+          font-size: 15px;
         }
 
-        .chatList {
-          margin-top: 14px;
-          overflow-y: auto;
-        }
-
-        .chatItem {
-          gap: 8px;
-          margin-bottom: 8px;
-        }
-
-        .chatSelect {
-          flex: 1;
-          gap: 10px;
+        .eyeBtn {
+          background: none;
           border: none;
-          height: 46px;
-          border-radius: 14px;
-          padding: 0 12px;
-          background: #111;
-          color: #fff;
-          justify-content: flex-start;
+          color: #999;
+          cursor: pointer;
         }
 
-        .chatItem.active .chatSelect {
-          background: #1c1c1c;
-        }
-
-        .main {
-          flex: 1;
-          display: flex;
-          flex-direction: column;
-        }
-
-        .topbar {
-          height: 64px;
-          border-bottom: 1px solid #161616;
-          padding: 0 14px;
-        }
-
-        .title {
-          font-size: 18px;
-          font-weight: 700;
-        }
-
-        .chatArea {
-          flex: 1;
-          overflow-y: auto;
-          padding: 20px;
-        }
-
-        .bubble {
-          max-width: 760px;
-          padding: 14px 16px;
+        .mainBtn,
+        .googleBtn {
+          width: 100%;
+          height: 56px;
+          border: none;
           border-radius: 18px;
-          margin-bottom: 14px;
-          line-height: 1.5;
+          cursor: pointer;
+          font-size: 15px;
+          font-weight: 700;
+          margin-top: 10px;
         }
 
-        .bubble.ai {
-          background: #101010;
-          border: 1px solid #181818;
-        }
-
-        .bubble.user {
-          background: #1a1a1a;
-          margin-left: auto;
-        }
-
-        .inputWrap {
-          padding: 16px;
-        }
-
-        .inputBox {
-          background: #101010;
-          border: 1px solid #1b1b1b;
-          border-radius: 20px;
-          padding: 8px;
-          gap: 10px;
-        }
-
-        .sendBtn {
+        .mainBtn {
           background: #fff;
           color: #000;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: 10px;
         }
 
-        .mobileOnly {
-          display: none;
+        .googleBtn {
+          background: #121212;
+          color: #fff;
+          border: 1px solid
+            #222;
+        }
+
+        .bottomText {
+          margin-top: 22px;
+          text-align: center;
+          color: #8f8f8f;
+          font-size: 14px;
+        }
+
+        .bottomText span {
+          color: #fff;
+          cursor: pointer;
+          font-weight: 600;
         }
 
         @media (max-width: 900px) {
-          .sidebar {
-            position: fixed;
-            left: -320px;
-            top: 0;
-            bottom: 0;
-            z-index: 100;
-            transition: 0.25s;
+          .loginWrap {
+            flex-direction: column;
           }
 
-          .sidebar.show {
-            left: 0;
+          .leftPanel {
+            border-right: none;
+            border-bottom: 1px
+              solid #151515;
+            padding: 32px 22px;
           }
 
-          .mobileOnly {
-            display: flex;
+          .brandBox h1 {
+            font-size: 40px;
           }
 
-          .bubble {
-            max-width: 100%;
+          .brandBox p {
+            font-size: 15px;
+          }
+
+          .rightPanel {
+            width: 100%;
+            padding: 18px;
+          }
+
+          .card {
+            padding: 24px;
           }
         }
       `}</style>
