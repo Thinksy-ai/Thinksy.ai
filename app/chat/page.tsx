@@ -1,12 +1,9 @@
+// app/chat/page.tsx
+
 "use client";
 
-import {
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
-
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import {
   Menu,
   Search,
@@ -16,6 +13,8 @@ import {
   Settings,
   User,
   Trash2,
+  LogOut,
+  Crown,
   X,
   Copy,
   ThumbsUp,
@@ -24,37 +23,27 @@ import {
   MessageSquare,
   Moon,
   Sun,
+  PanelLeftClose,
   Bot,
   Stars,
   Zap,
+  Check,
   Volume2,
+  PenSquare,
   ImageIcon,
   Clock3,
+  ChevronRight,
+  Cpu,
   Shield,
   Wand2,
-  MoreVertical,
-  Folder,
-  Share2,
-  Paperclip,
-  RotateCcw,
-  Download,
-  Pin,
-  Edit3,
 } from "lucide-react";
 
-import ReactMarkdown from "react-markdown";
+import { createClient } from "@supabase/supabase-js";
 
-import remarkGfm from "remark-gfm";
-
-import remarkMath from "remark-math";
-
-import rehypeKatex from "rehype-katex";
-
-import "katex/dist/katex.min.css";
-
-import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
-
-import { oneDark } from "react-syntax-highlighter/dist/esm/styles/prism";
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+);
 
 type Role = "user" | "assistant";
 
@@ -68,130 +57,127 @@ type Message = {
 type Chat = {
   id: number;
   title: string;
-  pinned?: boolean;
-  project?: string;
   messages: Message[];
 };
 
-type Memory = {
-  summary: string;
-};
+export default function LuminaUltra() {
+  const router = useRouter();
 
-export default function ThinksyUltra() {
   const bottomRef = useRef<HTMLDivElement>(null);
 
-  const fileRef =
-    useRef<HTMLInputElement>(null);
+  const [loading, setLoading] = useState(true);
 
-  const [sidebar, setSidebar] =
-    useState(true);
+  const [user, setUser] = useState<any>(null);
 
-  const [typing, setTyping] =
-    useState(false);
-
-  const [popup, setPopup] =
-    useState("");
-
-  const [search, setSearch] =
-    useState("");
-
-  const [input, setInput] =
-    useState("");
-
-  const [darkMode, setDarkMode] =
-    useState(true);
+  const [sidebar, setSidebar] = useState(false);
 
   const [settingsOpen, setSettingsOpen] =
     useState(false);
 
-  const [menuOpen, setMenuOpen] =
+  const [accountOpen, setAccountOpen] =
     useState(false);
 
-  const [memoryMode, setMemoryMode] =
+  const [voiceOpen, setVoiceOpen] =
+    useState(false);
+
+  const [typing, setTyping] = useState(false);
+
+  const [popup, setPopup] = useState("");
+
+  const [input, setInput] = useState("");
+
+  const [search, setSearch] = useState("");
+
+  const [darkMode, setDarkMode] =
+    useState(true);
+
+  const [glowEffects, setGlowEffects] =
+    useState(true);
+
+  const [compactMode, setCompactMode] =
+    useState(false);
+
+  const [online, setOnline] =
     useState(true);
 
   const [currentChat, setCurrentChat] =
     useState(0);
 
-  const [memory, setMemory] =
-    useState<Memory>({
-      summary: "",
-    });
-
-  const [projects] = useState([
+  const [chats, setChats] = useState<Chat[]>([
     {
       id: 1,
-      name: "Personal",
-    },
-    {
-      id: 2,
-      name: "Coding",
-    },
-    {
-      id: 3,
-      name: "Ideas",
+      title: "Welcome",
+      messages: [],
     },
   ]);
 
-  const [chats, setChats] =
-    useState<Chat[]>([
-      {
-        id: 1,
-        title: "Welcome",
-        pinned: true,
-        project: "Personal",
-        messages: [
-          {
-            id: 1,
-            role: "assistant",
-            text: "Welcome to Thinksy Ultra.",
-            time: getTime(),
-          },
-        ],
-      },
-    ]);
-
   useEffect(() => {
-    const savedChats =
-      localStorage.getItem(
-        "thinksy_chats"
-      );
+    async function checkUser() {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
 
-    const savedMemory =
-      localStorage.getItem(
-        "thinksy_memory"
-      );
+      if (!session) {
+        router.push("/login");
+      } else {
+        setUser(session.user);
+      }
 
-    if (savedChats) {
-      setChats(JSON.parse(savedChats));
+      setLoading(false);
     }
 
-    if (savedMemory) {
-      setMemory(
-        JSON.parse(savedMemory)
-      );
-    }
-  }, []);
+    checkUser();
 
-  useEffect(() => {
-    localStorage.setItem(
-      "thinksy_chats",
-      JSON.stringify(chats)
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange(
+      (_event, session) => {
+        if (!session) {
+          router.push("/login");
+        } else {
+          setUser(session.user);
+        }
+      }
     );
-  }, [chats]);
 
-  useEffect(() => {
-    localStorage.setItem(
-      "thinksy_memory",
-      JSON.stringify(memory)
-    );
-  }, [memory]);
+    return () => subscription.unsubscribe();
+  }, [router]);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({
       behavior: "smooth",
     });
-  }, [typing, chats]);
+  }, [chats, typing]);
+
+  useEffect(() => {
+    const updateOnline = () => {
+      setOnline(navigator.onLine);
+    };
+
+    updateOnline();
+
+    window.addEventListener(
+      "online",
+      updateOnline
+    );
+
+    window.addEventListener(
+      "offline",
+      updateOnline
+    );
+
+    return () => {
+      window.removeEventListener(
+        "online",
+        updateOnline
+      );
+
+      window.removeEventListener(
+        "offline",
+        updateOnline
+      );
+    };
+  }, []);
 
   function toast(text: string) {
     setPopup(text);
@@ -201,103 +187,31 @@ export default function ThinksyUltra() {
     }, 2200);
   }
 
-  function getTime() {
-    return new Date().toLocaleTimeString(
-      [],
-      {
-        hour: "2-digit",
-        minute: "2-digit",
-      }
-    );
-  }
-
   function createChat() {
     const newChat: Chat = {
       id: Date.now(),
       title: "New Chat",
-      project: "Personal",
       messages: [],
     };
 
-    setChats((prev) => [
-      newChat,
-      ...prev,
-    ]);
+    setChats((prev) => [newChat, ...prev]);
 
     setCurrentChat(0);
 
-    toast("Fresh chat created");
+    toast("New chat created");
   }
 
-  function deleteChat(id: number) {
-    const filtered = chats.filter(
-      (c) => c.id !== id
-    );
-
-    setChats(filtered);
-
-    setCurrentChat(0);
-
-    toast("Chat deleted");
-  }
-
-  function pinChat(id: number) {
-    setChats((prev) =>
-      prev.map((chat) =>
-        chat.id === id
-          ? {
-              ...chat,
-              pinned: !chat.pinned,
-            }
-          : chat
-      )
-    );
-  }
-
-  function learnMemory(text: string) {
-    if (!memoryMode) return;
-
-    const lower =
-      text.toLowerCase();
-
-    let newFacts = "";
-
-    if (
-      lower.includes("i like")
-    ) {
-      newFacts += text + "\n";
-    }
-
-    if (
-      lower.includes("my name")
-    ) {
-      newFacts += text + "\n";
-    }
-
-    if (
-      lower.includes("remember")
-    ) {
-      newFacts += text + "\n";
-    }
-
-    if (newFacts) {
-      setMemory((prev) => ({
-        summary:
-          prev.summary +
-          "\n" +
-          newFacts,
-      }));
-    }
+  function getTime() {
+    return new Date().toLocaleTimeString([], {
+      hour: "2-digit",
+      minute: "2-digit",
+    });
   }
 
   async function sendMessage() {
     if (!input.trim()) return;
 
     const userText = input;
-
-    setInput("");
-
-    learnMemory(userText);
 
     const userMessage: Message = {
       id: Date.now(),
@@ -314,63 +228,53 @@ export default function ThinksyUltra() {
 
     if (
       updatedChats[currentChat].title ===
-      "New Chat"
+        "New Chat" ||
+      updatedChats[currentChat].title ===
+        "Welcome"
     ) {
       updatedChats[currentChat].title =
-        userText.slice(0, 32);
+        userText.slice(0, 24);
     }
 
     setChats(updatedChats);
 
+    setInput("");
+
     setTyping(true);
 
     try {
-      const response = await fetch(
-        "/api/chat",
-        {
-          method: "POST",
+      const res = await fetch("/api/chat", {
+        method: "POST",
+        headers: {
+          "Content-Type":
+            "application/json",
+        },
+        body: JSON.stringify({
+          message: userText,
+        }),
+      });
 
-          headers: {
-            "Content-Type":
-              "application/json",
-          },
+      const data = await res.json();
 
-          body: JSON.stringify({
-            message: userText,
-
-            history:
-              updatedChats[
-                currentChat
-              ].messages.slice(-15),
-
-            memory:
-              memory.summary,
-          }),
-        }
-      );
-
-      const data =
-        await response.json();
-
-      updatedChats[
-        currentChat
-      ].messages.push({
+      const aiMessage: Message = {
         id: Date.now() + 1,
         role: "assistant",
         text:
           data.reply ||
-          "No response.",
+          "Lumina AI could not respond.",
         time: getTime(),
-      });
+      };
+
+      updatedChats[currentChat].messages.push(
+        aiMessage
+      );
 
       setChats([...updatedChats]);
     } catch {
-      updatedChats[
-        currentChat
-      ].messages.push({
+      updatedChats[currentChat].messages.push({
         id: Date.now() + 2,
         role: "assistant",
-        text: "API connection failed.",
+        text: "Connection failed.",
         time: getTime(),
       });
 
@@ -380,83 +284,165 @@ export default function ThinksyUltra() {
     setTyping(false);
   }
 
-  function speak(text: string) {
-    const utterance =
-      new SpeechSynthesisUtterance(
-        text
-      );
-
-    speechSynthesis.speak(
-      utterance
-    );
-
-    toast("Speaking");
-  }
-
   function copyText(text: string) {
-    navigator.clipboard.writeText(
-      text
-    );
+    navigator.clipboard.writeText(text);
 
     toast("Copied");
   }
 
-  function exportChat() {
-    const text =
-      chats[
-        currentChat
-      ].messages
-        .map(
-          (m) =>
-            `${m.role}: ${m.text}`
-        )
-        .join("\n\n");
+  function react(type: "up" | "down") {
+    if (type === "up") {
+      toast("Thanks for the feedback");
+    } else {
+      toast("Feedback submitted");
+    }
+  }
 
-    const blob = new Blob([text], {
-      type: "text/plain",
-    });
+  function speak(text: string) {
+    const utterance =
+      new SpeechSynthesisUtterance(text);
 
-    const url =
-      URL.createObjectURL(blob);
+    speechSynthesis.speak(utterance);
 
-    const a =
-      document.createElement("a");
+    toast("Reading response");
+  }
 
-    a.href = url;
+  async function logout() {
+    await supabase.auth.signOut();
 
-    a.download = "thinksy-chat.txt";
+    router.push("/login");
+  }
 
-    a.click();
+  function deleteChat(id: number) {
+    const filtered = chats.filter(
+      (chat) => chat.id !== id
+    );
 
-    toast("Exported");
+    if (filtered.length === 0) {
+      setChats([
+        {
+          id: 1,
+          title: "Welcome",
+          messages: [],
+        },
+      ]);
+
+      setCurrentChat(0);
+    } else {
+      setChats(filtered);
+
+      setCurrentChat(0);
+    }
+
+    toast("Chat deleted");
+  }
+
+  async function deleteAccount() {
+    toast("Delete account backend pending");
+  }
+
+  function startVoice() {
+    const SpeechRecognition =
+      (window as any).SpeechRecognition ||
+      (window as any)
+        .webkitSpeechRecognition;
+
+    if (!SpeechRecognition) {
+      toast("Voice unsupported");
+      return;
+    }
+
+    setVoiceOpen(true);
+
+    const recognition =
+      new SpeechRecognition();
+
+    recognition.lang = "en-US";
+
+    recognition.continuous = false;
+
+    recognition.interimResults = false;
+
+    recognition.start();
+
+    recognition.onresult = (
+      event: any
+    ) => {
+      const transcript =
+        event.results[0][0].transcript;
+
+      setInput(transcript);
+
+      setVoiceOpen(false);
+
+      toast("Voice captured");
+    };
+
+    recognition.onerror = () => {
+      setVoiceOpen(false);
+
+      toast("Voice cancelled");
+    };
+
+    recognition.onend = () => {
+      setVoiceOpen(false);
+    };
   }
 
   const filteredChats = useMemo(() => {
     return chats.filter((chat) =>
       chat.title
         .toLowerCase()
-        .includes(
-          search.toLowerCase()
-        )
+        .includes(search.toLowerCase())
     );
   }, [search, chats]);
+
+  if (loading) {
+    return (
+      <div className="loader">
+        <div className="loaderOrb" />
+      </div>
+    );
+  }
 
   return (
     <main
       className={`app ${
-        darkMode
-          ? "dark"
-          : "light"
+        darkMode ? "dark" : "light"
       }`}
     >
+      {glowEffects && (
+        <>
+          <div className="glow glow1" />
+          <div className="glow glow2" />
+        </>
+      )}
+
+      <div className="bgWord">
+        LUMINA
+      </div>
+
+      {/* SIDEBAR */}
+
       <aside
         className={`sidebar ${
           sidebar ? "show" : ""
         }`}
       >
-        <div className="logo">
-          <Sparkles size={18} />
-          Thinksy Ultra
+        <div className="sideTop">
+          <div className="logo">
+            <Sparkles size={18} />
+            <span>Lumina AI</span>
+          </div>
+
+          <button
+            className="mobileClose"
+            onClick={() =>
+              setSidebar(false)
+            }
+          >
+            <X size={18} />
+          </button>
         </div>
 
         <button
@@ -474,23 +460,31 @@ export default function ThinksyUltra() {
             placeholder="Search chats..."
             value={search}
             onChange={(e) =>
-              setSearch(
-                e.target.value
-              )
+              setSearch(e.target.value)
             }
           />
         </div>
 
-        <div className="projects">
-          {projects.map((project) => (
-            <div
-              className="project"
-              key={project.id}
-            >
-              <Folder size={15} />
-              {project.name}
-            </div>
-          ))}
+        <div className="quickTools">
+          <div className="toolCard">
+            <Bot size={18} />
+            Smart AI
+          </div>
+
+          <div className="toolCard">
+            <Shield size={18} />
+            Secure
+          </div>
+
+          <div className="toolCard">
+            <Cpu size={18} />
+            Fast
+          </div>
+
+          <div className="toolCard">
+            <Wand2 size={18} />
+            Creative
+          </div>
         </div>
 
         <div className="history">
@@ -499,8 +493,8 @@ export default function ThinksyUltra() {
               <div
                 key={chat.id}
                 className={`historyItem ${
-                  chats[currentChat]
-                    ?.id === chat.id
+                  chats[currentChat]?.id ===
+                  chat.id
                     ? "active"
                     : ""
                 }`}
@@ -508,7 +502,7 @@ export default function ThinksyUltra() {
                 <button
                   className="historySelect"
                   onClick={() => {
-                    const index =
+                    const realIndex =
                       chats.findIndex(
                         (c) =>
                           c.id ===
@@ -516,12 +510,14 @@ export default function ThinksyUltra() {
                       );
 
                     setCurrentChat(
-                      index
+                      realIndex
                     );
+
+                    setSidebar(false);
                   }}
                 >
                   <MessageSquare
-                    size={15}
+                    size={16}
                   />
 
                   <span>
@@ -530,307 +526,226 @@ export default function ThinksyUltra() {
                 </button>
 
                 <button
-                  className="mini"
+                  className="deleteMini"
                   onClick={() =>
-                    pinChat(chat.id)
+                    deleteChat(chat.id)
                   }
                 >
-                  <Pin size={13} />
-                </button>
-
-                <button
-                  className="mini"
-                  onClick={() =>
-                    deleteChat(
-                      chat.id
-                    )
-                  }
-                >
-                  <Trash2
-                    size={13}
-                  />
+                  <Trash2 size={14} />
                 </button>
               </div>
             )
           )}
         </div>
+
+        <div className="sideBottom">
+          <button
+            className="sideBtn"
+            onClick={() =>
+              setSettingsOpen(true)
+            }
+          >
+            <Settings size={18} />
+            Settings
+          </button>
+
+          <button
+            className="sideBtn"
+            onClick={() =>
+              setAccountOpen(true)
+            }
+          >
+            <User size={18} />
+            Account
+          </button>
+        </div>
       </aside>
+
+      {/* MAIN */}
 
       <section className="main">
         <header className="topbar">
           <button
             className="circleBtn"
             onClick={() =>
-              setSidebar(!sidebar)
+              setSidebar(true)
             }
           >
-            <Menu size={18} />
+            <Menu size={20} />
           </button>
 
-          <div className="topTitle">
-            <span>
-              Thinksy Ultra
-            </span>
+          <div className="centerBrand">
+            <span>Lumina Ultra</span>
 
-            <div className="status">
-              Online
+            <div
+              className={`status ${
+                online
+                  ? "online"
+                  : "offline"
+              }`}
+            >
+              {online
+                ? "Online"
+                : "Offline"}
             </div>
           </div>
 
-          <div className="topActions">
-            <button
-              className="circleBtn"
-              onClick={() =>
-                setMenuOpen(
-                  !menuOpen
-                )
-              }
-            >
-              <MoreVertical
-                size={18}
-              />
-            </button>
-
-            {menuOpen && (
-              <div className="menu">
-                <button
-                  onClick={
-                    exportChat
-                  }
-                >
-                  <Download
-                    size={16}
-                  />
-                  Export
-                </button>
-
-                <button>
-                  <Share2
-                    size={16}
-                  />
-                  Share
-                </button>
-
-                <button
-                  onClick={() =>
-                    setSettingsOpen(
-                      true
-                    )
-                  }
-                >
-                  <Settings
-                    size={16}
-                  />
-                  Settings
-                </button>
-
-                <button>
-                  <RotateCcw
-                    size={16}
-                  />
-                  Retry
-                </button>
-              </div>
-            )}
-          </div>
+          <button
+            className="circleBtn"
+            onClick={createChat}
+          >
+            <PenSquare size={18} />
+          </button>
         </header>
 
-        {chats[currentChat]
-          ?.messages.length ===
-          0 && (
+        {chats[currentChat]?.messages
+          .length === 0 && (
           <div className="hero">
             <div className="heroBadge">
-              <Stars size={15} />
-              Futuristic AI Workspace
+              <Stars size={16} />
+              Next Generation AI
             </div>
 
             <h1>
-              Think.
+              Think smarter.
               <br />
-              Build.
-              <br />
-              Create.
+              Build faster.
             </h1>
 
             <p>
-              Smart memory, coding,
-              markdown, AI tools,
-              projects and futuristic
-              conversations.
+              Voice AI, coding, writing,
+              research, creativity and
+              ultra-fast responses in one
+              futuristic workspace.
             </p>
 
             <div className="heroGrid">
               <div className="heroCard">
-                <Zap size={20} />
-                Ultra Fast
+                <Zap size={22} />
+                <h3>Ultra Speed</h3>
+                <span>
+                  Faster AI responses
+                </span>
               </div>
 
               <div className="heroCard">
-                <Bot size={20} />
-                Smart Memory
+                <Bot size={22} />
+                <h3>Smart Assistant</h3>
+                <span>
+                  Human-like answers
+                </span>
               </div>
 
               <div className="heroCard">
-                <Shield
-                  size={20}
-                />
-                Secure
+                <Mic size={22} />
+                <h3>Voice Support</h3>
+                <span>
+                  Speak naturally
+                </span>
               </div>
 
               <div className="heroCard">
-                <Wand2 size={20} />
-                Creative
+                <ImageIcon size={22} />
+                <h3>Creative AI</h3>
+                <span>
+                  Ideas and generation
+                </span>
               </div>
             </div>
           </div>
         )}
 
+        {/* CHAT */}
+
         <div className="chatArea">
-          {chats[
-            currentChat
-          ]?.messages.map((msg) => (
-            <div
-              key={msg.id}
-              className={`msg ${
-                msg.role ===
-                "assistant"
-                  ? "ai"
-                  : "user"
-              }`}
-            >
-              <div className="msgTop">
-                <div className="msgUser">
-                  {msg.role ===
-                  "assistant" ? (
-                    <>
-                      <Bot size={15} />
-                      Thinksy
-                    </>
-                  ) : (
-                    <>
-                      <User
+          {chats[currentChat]?.messages.map(
+            (msg) => (
+              <div
+                key={msg.id}
+                className={`msg ${
+                  msg.role === "user"
+                    ? "user"
+                    : "ai"
+                } ${
+                  compactMode
+                    ? "compact"
+                    : ""
+                }`}
+              >
+                <div className="msgTop">
+                  <div className="msgUser">
+                    {msg.role === "assistant" ? (
+                      <>
+                        <Bot size={16} />
+                        Lumina
+                      </>
+                    ) : (
+                      <>
+                        <User size={16} />
+                        You
+                      </>
+                    )}
+                  </div>
+
+                  <div className="msgTime">
+                    <Clock3 size={12} />
+                    {msg.time}
+                  </div>
+                </div>
+
+                <div className="msgText">
+                  {msg.text}
+                </div>
+
+                {msg.role ===
+                  "assistant" && (
+                  <div className="msgActions">
+                    <button
+                      onClick={() =>
+                        copyText(
+                          msg.text
+                        )
+                      }
+                    >
+                      <Copy size={15} />
+                    </button>
+
+                    <button
+                      onClick={() =>
+                        speak(
+                          msg.text
+                        )
+                      }
+                    >
+                      <Volume2
                         size={15}
                       />
-                      You
-                    </>
-                  )}
-                </div>
+                    </button>
 
-                <div className="msgTime">
-                  <Clock3
-                    size={12}
-                  />
-                  {msg.time}
-                </div>
+                    <button
+                      onClick={() =>
+                        react("up")
+                      }
+                    >
+                      <ThumbsUp
+                        size={15}
+                      />
+                    </button>
+
+                    <button
+                      onClick={() =>
+                        react("down")
+                      }
+                    >
+                      <ThumbsDown
+                        size={15}
+                      />
+                    </button>
+                  </div>
+                )}
               </div>
-
-              <div className="markdown">
-                <ReactMarkdown
-                  remarkPlugins={[
-                    remarkGfm,
-                    remarkMath,
-                  ]}
-                  rehypePlugins={[
-                    rehypeKatex,
-                  ]}
-                  components={{
-                    code(props) {
-                      const {
-                        children,
-                        className,
-                        ...rest
-                      } = props;
-
-                      const match =
-                        /language-(\w+)/.exec(
-                          className ||
-                            ""
-                        );
-
-                      return match ? (
-                        <SyntaxHighlighter
-                          PreTag="div"
-                          language={
-                            match[1]
-                          }
-                          style={
-                            oneDark
-                          }
-                        >
-                          {String(
-                            children
-                          ).replace(
-                            /\n$/,
-                            ""
-                          )}
-                        </SyntaxHighlighter>
-                      ) : (
-                        <code
-                          className={
-                            className
-                          }
-                          {...rest}
-                        >
-                          {
-                            children
-                          }
-                        </code>
-                      );
-                    },
-                  }}
-                >
-                  {msg.text}
-                </ReactMarkdown>
-              </div>
-
-              {msg.role ===
-                "assistant" && (
-                <div className="msgActions">
-                  <button
-                    onClick={() =>
-                      copyText(
-                        msg.text
-                      )
-                    }
-                  >
-                    <Copy
-                      size={14}
-                    />
-                  </button>
-
-                  <button
-                    onClick={() =>
-                      speak(
-                        msg.text
-                      )
-                    }
-                  >
-                    <Volume2
-                      size={14}
-                    />
-                  </button>
-
-                  <button>
-                    <ThumbsUp
-                      size={14}
-                    />
-                  </button>
-
-                  <button>
-                    <ThumbsDown
-                      size={14}
-                    />
-                  </button>
-
-                  <button>
-                    <Edit3
-                      size={14}
-                    />
-                  </button>
-                </div>
-              )}
-            </div>
-          ))}
+            )
+          )}
 
           {typing && (
             <div className="typing">
@@ -843,84 +758,58 @@ export default function ThinksyUltra() {
           <div ref={bottomRef} />
         </div>
 
+        {/* INPUT */}
+
         <div className="inputWrap">
           <div className="inputBox">
-            <textarea
-              placeholder="Message Thinksy..."
+            <input
+              placeholder="Ask Lumina AI..."
               value={input}
               onChange={(e) =>
-                setInput(
-                  e.target.value
-                )
+                setInput(e.target.value)
               }
-              onKeyDown={(e) => {
-                if (
-                  e.key ===
-                    "Enter" &&
-                  !e.shiftKey
-                ) {
-                  e.preventDefault();
-
-                  sendMessage();
-                }
-              }}
+              onKeyDown={(e) =>
+                e.key === "Enter" &&
+                sendMessage()
+              }
             />
 
             <div className="inputButtons">
-              <input
-                type="file"
-                hidden
-                ref={fileRef}
-              />
-
               <button
                 className="miniBtn"
-                onClick={() =>
-                  fileRef.current?.click()
-                }
+                onClick={startVoice}
               >
-                <Paperclip
-                  size={17}
-                />
+                <Mic size={18} />
               </button>
 
               <button className="miniBtn">
-                <Mic size={17} />
-              </button>
-
-              <button className="miniBtn">
-                <ImageIcon
-                  size={17}
-                />
+                <ImageIcon size={18} />
               </button>
 
               <button
                 className="sendBtn"
                 onClick={sendMessage}
               >
-                <Send size={17} />
+                <Send size={18} />
               </button>
             </div>
           </div>
 
-          <div className="footer">
-            Memory:
-            {memoryMode
-              ? " ON"
-              : " OFF"}
+          <div className="inputFooter">
+            <span>
+              Lumina Ultra AI
+            </span>
 
-            <button
-              onClick={() =>
-                setMemoryMode(
-                  !memoryMode
-                )
-              }
-            >
-              Toggle
-            </button>
+            <ChevronRight size={14} />
+
+            <span>
+              Secure • Fast • Smart
+            </span>
           </div>
         </div>
       </section>
+
+      {/* SETTINGS */}
 
       {settingsOpen && (
         <div className="overlay">
@@ -930,9 +819,7 @@ export default function ThinksyUltra() {
 
               <button
                 onClick={() =>
-                  setSettingsOpen(
-                    false
-                  )
+                  setSettingsOpen(false)
                 }
               >
                 <X size={18} />
@@ -940,11 +827,17 @@ export default function ThinksyUltra() {
             </div>
 
             <div className="setting">
-              <span>
-                Dark Mode
-              </span>
+              <div>
+                <h3>Dark Mode</h3>
+
+                <p>
+                  Toggle interface
+                  appearance
+                </p>
+              </div>
 
               <button
+                className="toggle"
                 onClick={() =>
                   setDarkMode(
                     !darkMode
@@ -952,19 +845,128 @@ export default function ThinksyUltra() {
                 }
               >
                 {darkMode ? (
-                  <Moon
-                    size={16}
-                  />
+                  <Moon size={16} />
                 ) : (
-                  <Sun
-                    size={16}
-                  />
+                  <Sun size={16} />
                 )}
+              </button>
+            </div>
+
+            <div className="setting">
+              <div>
+                <h3>Glow Effects</h3>
+
+                <p>
+                  Futuristic visual glow
+                </p>
+              </div>
+
+              <button
+                className="toggle"
+                onClick={() =>
+                  setGlowEffects(
+                    !glowEffects
+                  )
+                }
+              >
+                <Check size={16} />
+              </button>
+            </div>
+
+            <div className="setting">
+              <div>
+                <h3>Compact Mode</h3>
+
+                <p>
+                  Smaller message layout
+                </p>
+              </div>
+
+              <button
+                className="toggle"
+                onClick={() =>
+                  setCompactMode(
+                    !compactMode
+                  )
+                }
+              >
+                <PanelLeftClose
+                  size={16}
+                />
               </button>
             </div>
           </div>
         </div>
       )}
+
+      {/* ACCOUNT */}
+
+      {accountOpen && (
+        <div className="overlay">
+          <div className="panel">
+            <div className="panelTop">
+              <h2>Account</h2>
+
+              <button
+                onClick={() =>
+                  setAccountOpen(false)
+                }
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="profile">
+              <div className="avatar">
+                {user?.email?.[0]}
+              </div>
+
+              <div>
+                <h3>
+                  {user?.email}
+                </h3>
+
+                <p>
+                  Lumina Premium
+                </p>
+              </div>
+            </div>
+
+            <button className="panelBtn premium">
+              <Crown size={18} />
+              Upgrade to Ultra+
+            </button>
+
+            <button
+              className="panelBtn danger"
+              onClick={deleteAccount}
+            >
+              <Trash2 size={18} />
+              Delete Account
+            </button>
+
+            <button
+              className="panelBtn logout"
+              onClick={logout}
+            >
+              <LogOut size={18} />
+              Logout
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* VOICE */}
+
+      {voiceOpen && (
+        <div className="voiceOverlay">
+          <div className="voiceOrb" />
+
+          <h2>Listening...</h2>
+        </div>
+      )}
+
+      {/* TOAST */}
 
       {popup && (
         <div className="toast">
@@ -979,26 +981,74 @@ export default function ThinksyUltra() {
           box-sizing: border-box;
         }
 
+        html,
         body {
+          width: 100%;
+          overflow-x: hidden;
           font-family: Inter,
             sans-serif;
+        }
+
+        body {
           background: #000;
-          overflow: hidden;
         }
 
         .app {
-          display: flex;
+          width: 100%;
           min-height: 100vh;
+          display: flex;
+          overflow: hidden;
+          position: relative;
+        }
+
+        .dark {
+          background: #000;
           color: white;
-          background: radial-gradient(
-            circle at top,
-            #151515,
-            #000
-          );
+        }
+
+        .light {
+          background: #f4f4f4;
+          color: black;
+        }
+
+        .bgWord {
+          position: fixed;
+          inset: 0;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-size: 18vw;
+          font-weight: 900;
+          opacity: 0.03;
+          letter-spacing: 14px;
+          pointer-events: none;
+        }
+
+        .glow {
+          position: fixed;
+          border-radius: 50%;
+          filter: blur(120px);
+          z-index: 0;
+        }
+
+        .glow1 {
+          width: 350px;
+          height: 350px;
+          background: #222;
+          top: -100px;
+          left: -100px;
+        }
+
+        .glow2 {
+          width: 320px;
+          height: 320px;
+          background: #111;
+          bottom: -100px;
+          right: -100px;
         }
 
         .sidebar {
-          width: 290px;
+          width: 300px;
           background: rgba(
             10,
             10,
@@ -1006,67 +1056,91 @@ export default function ThinksyUltra() {
             0.92
           );
           border-right: 1px solid
-            #1c1c1c;
-          backdrop-filter: blur(30px);
+            #1d1d1d;
           padding: 18px;
           display: flex;
           flex-direction: column;
+          z-index: 20;
+        }
+
+        .sideTop {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
         }
 
         .logo {
           display: flex;
           align-items: center;
           gap: 10px;
-          font-size: 24px;
+          font-size: 22px;
           font-weight: 800;
         }
 
+        .logo span {
+          line-height: 1;
+        }
+
+        .mobileClose {
+          display: none;
+        }
+
         .newChatBtn {
-          margin-top: 20px;
-          height: 54px;
+          margin-top: 22px;
+          height: 58px;
           border-radius: 18px;
           border: none;
           background: white;
           color: black;
           font-weight: 700;
           cursor: pointer;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: 10px;
         }
 
         .searchBox {
-          margin-top: 18px;
-          background: #111;
-          border: 1px solid #222;
-          border-radius: 18px;
           height: 52px;
+          border-radius: 16px;
+          background: #101010;
+          border: 1px solid #1f1f1f;
+          margin-top: 16px;
           display: flex;
           align-items: center;
           gap: 10px;
-          padding: 0 14px;
+          padding: 0 16px;
         }
 
         .searchBox input {
           flex: 1;
           background: transparent;
           border: none;
-          color: white;
           outline: none;
+          color: white;
         }
 
-        .projects {
-          margin-top: 20px;
+        .quickTools {
+          display: grid;
+          grid-template-columns: repeat(
+            2,
+            1fr
+          );
+          gap: 10px;
+          margin-top: 18px;
+        }
+
+        .toolCard {
+          height: 70px;
+          border-radius: 18px;
+          background: #111;
+          border: 1px solid #1c1c1c;
           display: flex;
           flex-direction: column;
-          gap: 10px;
-        }
-
-        .project {
-          height: 48px;
-          background: #101010;
-          border-radius: 14px;
-          display: flex;
           align-items: center;
-          gap: 10px;
-          padding: 0 14px;
+          justify-content: center;
+          gap: 8px;
+          font-size: 13px;
         }
 
         .history {
@@ -1077,33 +1151,68 @@ export default function ThinksyUltra() {
 
         .historyItem {
           display: flex;
+          align-items: center;
           gap: 8px;
           margin-bottom: 10px;
         }
 
         .historySelect {
           flex: 1;
+          height: 52px;
+          border-radius: 16px;
           border: none;
-          height: 50px;
-          background: #101010;
+          background: #121212;
+          color: white;
+          padding: 0 16px;
+          display: flex;
+          align-items: center;
+          gap: 12px;
+          cursor: pointer;
+        }
+
+        .historySelect span {
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+        }
+
+        .historyItem.active
+          .historySelect {
+          background: white;
+          color: black;
+        }
+
+        .deleteMini {
+          width: 44px;
+          height: 44px;
           border-radius: 14px;
+          border: none;
+          background: #151515;
+          color: white;
+        }
+
+        .sideBottom {
+          display: flex;
+          flex-direction: column;
+          gap: 10px;
+        }
+
+        .sideBtn {
+          height: 52px;
+          border-radius: 16px;
+          border: none;
+          background: #111;
           color: white;
           display: flex;
           align-items: center;
-          gap: 10px;
-          padding: 0 14px;
-        }
-
-        .mini {
-          width: 42px;
-          border: none;
-          border-radius: 14px;
-          background: #111;
-          color: white;
+          gap: 12px;
+          padding: 0 16px;
+          cursor: pointer;
         }
 
         .main {
           flex: 1;
+          min-width: 0;
           display: flex;
           flex-direction: column;
           position: relative;
@@ -1112,12 +1221,37 @@ export default function ThinksyUltra() {
         .topbar {
           height: 72px;
           border-bottom: 1px solid
-            #1b1b1b;
+            #111;
           display: flex;
           align-items: center;
           justify-content: space-between;
-          padding: 0 20px;
-          backdrop-filter: blur(20px);
+          padding: 0 18px;
+          backdrop-filter: blur(10px);
+        }
+
+        .centerBrand {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+        }
+
+        .centerBrand span {
+          font-size: 24px;
+          font-weight: 800;
+          line-height: 1;
+        }
+
+        .status {
+          font-size: 12px;
+          margin-top: 4px;
+        }
+
+        .online {
+          color: #4ade80;
+        }
+
+        .offline {
+          color: #f87171;
         }
 
         .circleBtn {
@@ -1125,76 +1259,43 @@ export default function ThinksyUltra() {
           height: 46px;
           border-radius: 50%;
           border: none;
-          background: #101010;
-          color: white;
-        }
-
-        .topTitle {
-          text-align: center;
-        }
-
-        .topTitle span {
-          font-size: 24px;
-          font-weight: 800;
-        }
-
-        .status {
-          color: #4ade80;
-          font-size: 12px;
-        }
-
-        .menu {
-          position: absolute;
-          top: 80px;
-          right: 20px;
-          width: 220px;
-          background: #0d0d0d;
-          border-radius: 20px;
-          border: 1px solid #222;
-          overflow: hidden;
-          z-index: 20;
-        }
-
-        .menu button {
-          width: 100%;
-          height: 52px;
-          border: none;
-          background: transparent;
+          background: #111;
           color: white;
           display: flex;
           align-items: center;
-          gap: 10px;
-          padding: 0 16px;
+          justify-content: center;
         }
 
         .hero {
-          padding: 60px 40px;
+          padding: 70px 28px 30px;
+          position: relative;
+          z-index: 2;
         }
 
         .heroBadge {
           width: fit-content;
-          background: #111;
-          border: 1px solid #222;
           padding: 10px 16px;
           border-radius: 999px;
+          background: #111;
           display: flex;
           align-items: center;
           gap: 8px;
+          margin-bottom: 24px;
         }
 
         .hero h1 {
-          margin-top: 24px;
-          font-size: 88px;
-          line-height: 0.9;
+          font-size: 64px;
+          line-height: 1;
           font-weight: 900;
+          letter-spacing: -2px;
         }
 
         .hero p {
-          margin-top: 20px;
-          color: #8d8d8d;
-          max-width: 720px;
-          line-height: 1.8;
-          font-size: 17px;
+          margin-top: 18px;
+          font-size: 18px;
+          color: #9a9a9a;
+          max-width: 700px;
+          line-height: 1.7;
         }
 
         .heroGrid {
@@ -1202,48 +1303,74 @@ export default function ThinksyUltra() {
           display: grid;
           grid-template-columns: repeat(
             2,
-            1fr
+            minmax(0, 1fr)
           );
-          gap: 18px;
-          max-width: 720px;
+          gap: 16px;
+          max-width: 800px;
         }
 
         .heroCard {
-          min-height: 120px;
+          min-height: 140px;
           border-radius: 24px;
-          background: linear-gradient(
-            180deg,
-            #121212,
-            #0b0b0b
+          background: rgba(
+            18,
+            18,
+            18,
+            0.8
           );
-          border: 1px solid #202020;
-          padding: 22px;
+          border: 1px solid #1d1d1d;
+          padding: 24px;
           display: flex;
           flex-direction: column;
-          justify-content: center;
-          gap: 10px;
-          font-weight: 700;
+          justify-content: space-between;
+          transition: 0.25s;
+        }
+
+        .heroCard:hover {
+          transform: translateY(-4px);
+          border-color: #3a3a3a;
+        }
+
+        .heroCard h3 {
+          margin-top: 18px;
+          font-size: 20px;
+        }
+
+        .heroCard span {
+          color: #9b9b9b;
+          margin-top: 8px;
         }
 
         .chatArea {
           flex: 1;
           overflow-y: auto;
-          padding: 30px 26px 180px;
+          padding: 20px 24px 150px;
+          width: 100%;
         }
 
         .msg {
-          max-width: 920px;
-          border-radius: 28px;
-          padding: 24px;
-          margin-bottom: 20px;
+          width: fit-content;
+          max-width: min(
+            860px,
+            100%
+          );
+          padding: 22px;
+          border-radius: 24px;
+          margin-bottom: 18px;
+          animation: fade 0.2s ease;
+          word-break: break-word;
+        }
+
+        .compact {
+          padding: 14px;
         }
 
         .msg.ai {
           background: rgba(
-            14,
-            14,
-            14,
-            0.95
+            12,
+            12,
+            12,
+            0.9
           );
           border: 1px solid #1f1f1f;
         }
@@ -1256,8 +1383,10 @@ export default function ThinksyUltra() {
 
         .msgTop {
           display: flex;
+          align-items: center;
           justify-content: space-between;
-          margin-bottom: 14px;
+          margin-bottom: 16px;
+          gap: 20px;
         }
 
         .msgUser {
@@ -1271,24 +1400,20 @@ export default function ThinksyUltra() {
           display: flex;
           align-items: center;
           gap: 6px;
-          opacity: 0.7;
           font-size: 12px;
+          opacity: 0.7;
         }
 
-        .markdown {
+        .msgText {
           line-height: 1.9;
-        }
-
-        .markdown pre {
-          margin-top: 18px;
-          border-radius: 18px;
-          overflow: auto;
+          font-size: 16px;
+          white-space: pre-wrap;
         }
 
         .msgActions {
-          margin-top: 18px;
           display: flex;
           gap: 10px;
+          margin-top: 18px;
         }
 
         .msgActions button {
@@ -1303,7 +1428,7 @@ export default function ThinksyUltra() {
         .typing {
           display: flex;
           gap: 8px;
-          padding: 20px;
+          padding: 12px;
         }
 
         .typing span {
@@ -1316,56 +1441,60 @@ export default function ThinksyUltra() {
 
         .inputWrap {
           position: fixed;
-          left: 290px;
-          right: 0;
           bottom: 0;
-          padding: 20px;
+          left: 300px;
+          right: 0;
+          padding: 18px;
           background: linear-gradient(
             to top,
-            rgba(0, 0, 0, 0.98),
+            rgba(0, 0, 0, 0.95),
             transparent
           );
+          backdrop-filter: blur(12px);
         }
 
         .inputBox {
-          max-width: 980px;
+          max-width: 950px;
           margin: auto;
-          border-radius: 30px;
+          height: 74px;
+          border-radius: 28px;
+          border: 1px solid #1d1d1d;
           background: rgba(
             10,
             10,
             10,
             0.95
           );
-          border: 1px solid #1e1e1e;
-          backdrop-filter: blur(20px);
-          padding: 16px;
+          display: flex;
+          align-items: center;
+          padding: 0 14px 0 22px;
         }
 
-        .inputBox textarea {
-          width: 100%;
-          min-height: 70px;
-          background: transparent;
+        .inputBox input {
+          flex: 1;
           border: none;
-          resize: none;
-          outline: none;
+          background: transparent;
           color: white;
-          font-size: 16px;
+          font-size: 17px;
+          outline: none;
+          min-width: 0;
         }
 
         .inputButtons {
           display: flex;
-          justify-content: flex-end;
           gap: 10px;
-          margin-top: 12px;
         }
 
         .miniBtn,
         .sendBtn {
-          width: 46px;
-          height: 46px;
+          width: 48px;
+          height: 48px;
           border-radius: 50%;
           border: none;
+          cursor: pointer;
+          display: flex;
+          align-items: center;
+          justify-content: center;
         }
 
         .miniBtn {
@@ -1378,20 +1507,14 @@ export default function ThinksyUltra() {
           color: black;
         }
 
-        .footer {
+        .inputFooter {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: 8px;
           margin-top: 12px;
-          text-align: center;
-          color: #7d7d7d;
           font-size: 12px;
-        }
-
-        .footer button {
-          margin-left: 10px;
-          border: none;
-          background: white;
-          color: black;
-          padding: 6px 12px;
-          border-radius: 999px;
+          color: #7f7f7f;
         }
 
         .overlay {
@@ -1406,26 +1529,140 @@ export default function ThinksyUltra() {
           display: flex;
           align-items: center;
           justify-content: center;
+          z-index: 100;
+          padding: 20px;
         }
 
         .panel {
           width: 420px;
+          max-width: 100%;
+          background: #090909;
+          border: 1px solid #1d1d1d;
           border-radius: 28px;
-          background: #0d0d0d;
-          border: 1px solid #1e1e1e;
           padding: 24px;
         }
 
         .panelTop {
           display: flex;
-          justify-content: space-between;
           align-items: center;
+          justify-content: space-between;
+        }
+
+        .panelTop button {
+          width: 40px;
+          height: 40px;
+          border-radius: 50%;
+          border: none;
+          background: #111;
+          color: white;
         }
 
         .setting {
           margin-top: 24px;
           display: flex;
+          align-items: center;
           justify-content: space-between;
+        }
+
+        .setting h3 {
+          font-size: 16px;
+        }
+
+        .setting p {
+          color: #8b8b8b;
+          margin-top: 4px;
+          font-size: 14px;
+        }
+
+        .toggle {
+          width: 44px;
+          height: 44px;
+          border-radius: 50%;
+          border: none;
+          background: white;
+          color: black;
+        }
+
+        .profile {
+          display: flex;
+          align-items: center;
+          gap: 16px;
+          margin-top: 24px;
+        }
+
+        .avatar {
+          width: 68px;
+          height: 68px;
+          border-radius: 50%;
+          background: white;
+          color: black;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-size: 28px;
+          font-weight: 800;
+        }
+
+        .panelBtn {
+          width: 100%;
+          height: 56px;
+          border-radius: 18px;
+          border: none;
+          margin-top: 16px;
+          display: flex;
+          align-items: center;
+          gap: 12px;
+          padding: 0 18px;
+          cursor: pointer;
+        }
+
+        .premium {
+          background: white;
+          color: black;
+          font-weight: 700;
+        }
+
+        .danger {
+          background: #260909;
+          color: white;
+        }
+
+        .logout {
+          background: #111;
+          color: white;
+        }
+
+        .voiceOverlay {
+          position: fixed;
+          inset: 0;
+          background: rgba(
+            0,
+            0,
+            0,
+            0.86
+          );
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          flex-direction: column;
+          z-index: 200;
+        }
+
+        .voiceOrb {
+          width: 180px;
+          height: 180px;
+          border-radius: 50%;
+          background: radial-gradient(
+            circle,
+            white,
+            #333
+          );
+          animation: pulse 1.2s infinite;
+        }
+
+        .voiceOverlay h2 {
+          margin-top: 24px;
+          font-size: 32px;
         }
 
         .toast {
@@ -1435,16 +1672,57 @@ export default function ThinksyUltra() {
           transform: translateX(-50%);
           background: white;
           color: black;
-          padding: 14px 22px;
+          padding: 14px 24px;
           border-radius: 999px;
           font-weight: 700;
+          z-index: 200;
+        }
+
+        .loader {
+          width: 100%;
+          height: 100vh;
+          background: black;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+        }
+
+        .loaderOrb {
+          width: 90px;
+          height: 90px;
+          border-radius: 50%;
+          border: 6px solid #222;
+          border-top: 6px solid white;
+          animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+          to {
+            transform: rotate(360deg);
+          }
+        }
+
+        @keyframes pulse {
+          50% {
+            transform: scale(1.08);
+          }
         }
 
         @keyframes bounce {
           50% {
-            transform: translateY(
-              -5px
-            );
+            transform: translateY(-6px);
+          }
+        }
+
+        @keyframes fade {
+          from {
+            opacity: 0;
+            transform: translateY(8px);
+          }
+
+          to {
+            opacity: 1;
+            transform: translateY(0);
           }
         }
 
@@ -1454,7 +1732,6 @@ export default function ThinksyUltra() {
             left: -100%;
             top: 0;
             bottom: 0;
-            z-index: 100;
             transition: 0.3s;
           }
 
@@ -1462,16 +1739,44 @@ export default function ThinksyUltra() {
             left: 0;
           }
 
+          .mobileClose {
+            display: flex;
+            width: 38px;
+            height: 38px;
+            border-radius: 50%;
+            border: none;
+            background: #111;
+            color: white;
+            align-items: center;
+            justify-content: center;
+          }
+
           .inputWrap {
             left: 0;
           }
 
+          .hero {
+            padding: 50px 18px 20px;
+          }
+
           .hero h1 {
-            font-size: 56px;
+            font-size: 44px;
           }
 
           .heroGrid {
             grid-template-columns: 1fr;
+          }
+
+          .chatArea {
+            padding: 18px 14px 150px;
+          }
+
+          .msg {
+            max-width: 100%;
+          }
+
+          .bgWord {
+            font-size: 30vw;
           }
         }
       `}</style>
