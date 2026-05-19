@@ -79,7 +79,7 @@ export default function Home() {
           messages: [
             {
               role: "assistant",
-              text: "Welcome to Lumina. Ask anything.",
+              text: "Welcome to Thinksy. Ask anything.",
             },
           ],
         },
