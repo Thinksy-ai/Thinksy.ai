@@ -59,6 +59,13 @@ import {
 import { createClient } from "@supabase/supabase-js";
 
 import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
+
+<div className="msgText">
+  <ReactMarkdown remarkPlugins={[remarkGfm]}>
+    {msg.text}
+  </ReactMarkdown>
+</div>
 
 import remarkGfm from "remark-gfm";
 
