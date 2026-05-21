@@ -57,18 +57,12 @@ import {
 } from "lucide-react";
 
 import { createClient } from "@supabase/supabase-js";
-
-import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import { Prism as SyntaxHighlighter }
+from "react-syntax-highlighter";
 
-<div className="msgText">
-  <ReactMarkdown remarkPlugins={[remarkGfm]}>
-    {msg.text}
-  </ReactMarkdown>
-</div>
-
-import remarkGfm from "remark-gfm";
-
+import { oneDark }
+from "react-syntax-highlighter/dist/esm/styles/prism";
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
