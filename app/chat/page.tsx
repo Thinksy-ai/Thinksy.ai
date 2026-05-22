@@ -2,19 +2,12 @@
 
 "use client";
 
-import {
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
-
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-
 import {
   Menu,
   Search,
- Plus,
+  Plus,
   Send,
   Mic,
   Settings,
@@ -43,160 +36,83 @@ import {
   Cpu,
   Shield,
   Wand2,
-  Paperclip,
-  Globe,
-  Brain,
-  RefreshCw,
-  Bookmark,
-  Command,
-  Download,
-  Share2,
-  ArrowDown,
-  StopCircle,
-  MoreHorizontal,
 } from "lucide-react";
 
 import { createClient } from "@supabase/supabase-js";
-import remarkGfm from "remark-gfm";
-import { Prism as SyntaxHighlighter }
-from "react-syntax-highlighter";
 
-import { oneDark }
-from "react-syntax-highlighter/dist/esm/styles/prism";
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 );
 
-type Role =
-  | "user"
-  | "assistant"
-  | "system";
+type Role = "user" | "assistant";
 
 type Message = {
   id: number;
   role: Role;
   text: string;
   time?: string;
-  bookmarked?: boolean;
-  loading?: boolean;
 };
 
 type Chat = {
   id: number;
   title: string;
-  pinned?: boolean;
-  model?: string;
   messages: Message[];
 };
 
-const models = [
-  "GPT-4.1",
-  "Claude Sonnet",
-  "Gemini 2.5",
-  "DeepSeek",
-  "Mistral",
-];
-
-export default function LuminaUltraX() {
+export default function LuminaUltra() {
   const router = useRouter();
 
-  const bottomRef =
-    useRef<HTMLDivElement>(null);
+  const bottomRef = useRef<HTMLDivElement>(null);
 
-  const textareaRef =
-    useRef<HTMLTextAreaElement>(null);
+  const [loading, setLoading] = useState(true);
 
-  const abortRef =
-    useRef<AbortController | null>(
-      null
-    );
+  const [user, setUser] = useState<any>(null);
 
-  const [loading, setLoading] =
-    useState(true);
+  const [sidebar, setSidebar] = useState(false);
 
-  const [user, setUser] =
-    useState<any>(null);
-
-  const [sidebar, setSidebar] =
+  const [settingsOpen, setSettingsOpen] =
     useState(false);
 
-  const [settingsOpen,
-    setSettingsOpen] =
+  const [accountOpen, setAccountOpen] =
     useState(false);
 
-  const [accountOpen,
-    setAccountOpen] =
+  const [voiceOpen, setVoiceOpen] =
     useState(false);
 
-  const [typing, setTyping] =
-    useState(false);
+  const [typing, setTyping] = useState(false);
 
-  const [popup, setPopup] =
-    useState("");
+  const [popup, setPopup] = useState("");
 
-  const [input, setInput] =
-    useState("");
+  const [input, setInput] = useState("");
 
-  const [search, setSearch] =
-    useState("");
+  const [search, setSearch] = useState("");
 
   const [darkMode, setDarkMode] =
     useState(true);
 
-  const [glowEffects,
-    setGlowEffects] =
+  const [glowEffects, setGlowEffects] =
     useState(true);
 
-  const [compactMode,
-    setCompactMode] =
+  const [compactMode, setCompactMode] =
     useState(false);
 
   const [online, setOnline] =
     useState(true);
 
-  const [currentChatId,
-    setCurrentChatId] =
-    useState<number>(1);
+  const [currentChat, setCurrentChat] =
+    useState(0);
 
-  const [streaming,
-    setStreaming] =
-    useState(false);
-
-  const [webMode, setWebMode] =
-    useState(true);
-
-  const [voiceMode,
-    setVoiceMode] =
-    useState(false);
-
-  const [selectedModel,
-    setSelectedModel] =
-    useState("GPT-4.1");
-
-  const [showScroll,
-    setShowScroll] =
-    useState(false);
-
-  const [chats, setChats] =
-    useState<Chat[]>([
-      {
-        id: 1,
-        title: "Lumina Ultra",
-        pinned: true,
-        model: "GPT-4.1",
-        messages: [],
-      },
-    ]);
-
-  const currentChat = useMemo(() => {
-    return chats.find(
-      (c) => c.id === currentChatId
-    );
-  }, [chats, currentChatId]);
+  const [chats, setChats] = useState<Chat[]>([
+    {
+      id: 1,
+      title: "Welcome",
+      messages: [],
+    },
+  ]);
 
   useEffect(() => {
-    async function init() {
+    async function checkUser() {
       const {
         data: { session },
       } = await supabase.auth.getSession();
@@ -210,7 +126,21 @@ export default function LuminaUltraX() {
       setLoading(false);
     }
 
-    init();
+    checkUser();
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange(
+      (_event, session) => {
+        if (!session) {
+          router.push("/login");
+        } else {
+          setUser(session.user);
+        }
+      }
+    );
+
+    return () => subscription.unsubscribe();
   }, [router]);
 
   useEffect(() => {
@@ -249,234 +179,109 @@ export default function LuminaUltraX() {
     };
   }, []);
 
-  useEffect(() => {
-    const handleScroll = () => {
-      setShowScroll(
-        window.scrollY > 300
-      );
-    };
-
-    window.addEventListener(
-      "scroll",
-      handleScroll
-    );
-
-    return () =>
-      window.removeEventListener(
-        "scroll",
-        handleScroll
-      );
-  }, []);
-
-  useEffect(() => {
-    if (!textareaRef.current) return;
-
-    textareaRef.current.style.height =
-      "0px";
-
-    textareaRef.current.style.height =
-      textareaRef.current.scrollHeight +
-      "px";
-  }, [input]);
-
   function toast(text: string) {
     setPopup(text);
 
     setTimeout(() => {
       setPopup("");
-    }, 2400);
-  }
-
-  function getTime() {
-    return new Date().toLocaleTimeString(
-      [],
-      {
-        hour: "2-digit",
-        minute: "2-digit",
-      }
-    );
+    }, 2200);
   }
 
   function createChat() {
     const newChat: Chat = {
       id: Date.now(),
       title: "New Chat",
-      pinned: false,
-      model: selectedModel,
       messages: [],
     };
 
-    setChats((prev) => [
-      newChat,
-      ...prev,
-    ]);
+    setChats((prev) => [newChat, ...prev]);
 
-    setCurrentChatId(newChat.id);
+    setCurrentChat(0);
 
     toast("New chat created");
   }
 
-  function updateChat(
-    chatId: number,
-    updater: (chat: Chat) => Chat
-  ) {
-    setChats((prev) =>
-      prev.map((chat) =>
-        chat.id === chatId
-          ? updater(chat)
-          : chat
-      )
-    );
+  function getTime() {
+    return new Date().toLocaleTimeString([], {
+      hour: "2-digit",
+      minute: "2-digit",
+    });
   }
 
   async function sendMessage() {
     if (!input.trim()) return;
 
-    if (!currentChat) return;
+    const userText = input;
 
     const userMessage: Message = {
       id: Date.now(),
       role: "user",
-      text: input,
+      text: userText,
       time: getTime(),
     };
 
-    const aiId = Date.now() + 1;
+    const updatedChats = [...chats];
 
-    const aiMessage: Message = {
-      id: aiId,
-      role: "assistant",
-      text: "",
-      time: getTime(),
-      loading: true,
-    };
+    updatedChats[currentChat].messages.push(
+      userMessage
+    );
 
-    updateChat(currentChat.id, (chat) => ({
-      ...chat,
-      title:
-        chat.title === "New Chat"
-          ? input.slice(0, 32)
-          : chat.title,
-      messages: [
-        ...chat.messages,
-        userMessage,
-        aiMessage,
-      ],
-    }));
+    if (
+      updatedChats[currentChat].title ===
+        "New Chat" ||
+      updatedChats[currentChat].title ===
+        "Welcome"
+    ) {
+      updatedChats[currentChat].title =
+        userText.slice(0, 24);
+    }
 
-    const prompt = input;
+    setChats(updatedChats);
 
     setInput("");
 
     setTyping(true);
 
-    setStreaming(true);
-
-    const controller =
-      new AbortController();
-
-    abortRef.current = controller;
-
     try {
-      const res = await fetch(
-        "/api/chat",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type":
-              "application/json",
-          },
-          signal: controller.signal,
-          body: JSON.stringify({
-            message: prompt,
-            model: selectedModel,
-            webMode,
-          }),
-        }
+      const res = await fetch("/api/chat", {
+        method: "POST",
+        headers: {
+          "Content-Type":
+            "application/json",
+        },
+        body: JSON.stringify({
+          message: userText,
+        }),
+      });
+
+      const data = await res.json();
+
+      const aiMessage: Message = {
+        id: Date.now() + 1,
+        role: "assistant",
+        text:
+          data.reply ||
+          "Lumina AI could not respond.",
+        time: getTime(),
+      };
+
+      updatedChats[currentChat].messages.push(
+        aiMessage
       );
 
-      const reader =
-        res.body?.getReader();
-
-      const decoder =
-        new TextDecoder();
-
-      let done = false;
-
-      let fullText = "";
-
-      while (!done) {
-        const result =
-          await reader?.read();
-
-        done = !!result?.done;
-
-        const chunk =
-          decoder.decode(
-            result?.value || new Uint8Array()
-          );
-
-        fullText += chunk;
-
-        updateChat(
-          currentChat.id,
-          (chat) => ({
-            ...chat,
-            messages:
-              chat.messages.map((m) =>
-                m.id === aiId
-                  ? {
-                      ...m,
-                      text: fullText,
-                      loading: false,
-                    }
-                  : m
-              ),
-          })
-        );
-      }
+      setChats([...updatedChats]);
     } catch {
-      updateChat(currentChat.id, (chat) => ({
-        ...chat,
-        messages: chat.messages.map((m) =>
-          m.id === aiId
-            ? {
-                ...m,
-                text: "Generation stopped or failed.",
-                loading: false,
-              }
-            : m
-        ),
-      }));
+      updatedChats[currentChat].messages.push({
+        id: Date.now() + 2,
+        role: "assistant",
+        text: "Connection failed.",
+        time: getTime(),
+      });
+
+      setChats([...updatedChats]);
     }
 
     setTyping(false);
-
-    setStreaming(false);
-  }
-
-  function stopGeneration() {
-    abortRef.current?.abort();
-
-    setStreaming(false);
-
-    setTyping(false);
-
-    toast("Generation stopped");
-  }
-
-  function deleteChat(id: number) {
-    const filtered = chats.filter(
-      (c) => c.id !== id
-    );
-
-    setChats(filtered);
-
-    if (filtered.length > 0) {
-      setCurrentChatId(filtered[0].id);
-    }
-
-    toast("Chat deleted");
   }
 
   function copyText(text: string) {
@@ -485,19 +290,60 @@ export default function LuminaUltraX() {
     toast("Copied");
   }
 
+  function react(type: "up" | "down") {
+    if (type === "up") {
+      toast("Thanks for the feedback");
+    } else {
+      toast("Feedback submitted");
+    }
+  }
+
   function speak(text: string) {
     const utterance =
       new SpeechSynthesisUtterance(text);
 
     speechSynthesis.speak(utterance);
 
-    toast("Reading...");
+    toast("Reading response");
+  }
+
+  async function logout() {
+    await supabase.auth.signOut();
+
+    router.push("/login");
+  }
+
+  function deleteChat(id: number) {
+    const filtered = chats.filter(
+      (chat) => chat.id !== id
+    );
+
+    if (filtered.length === 0) {
+      setChats([
+        {
+          id: 1,
+          title: "Welcome",
+          messages: [],
+        },
+      ]);
+
+      setCurrentChat(0);
+    } else {
+      setChats(filtered);
+
+      setCurrentChat(0);
+    }
+
+    toast("Chat deleted");
+  }
+
+  async function deleteAccount() {
+    toast("Delete account backend pending");
   }
 
   function startVoice() {
     const SpeechRecognition =
-      (window as any)
-        .SpeechRecognition ||
+      (window as any).SpeechRecognition ||
       (window as any)
         .webkitSpeechRecognition;
 
@@ -506,55 +352,41 @@ export default function LuminaUltraX() {
       return;
     }
 
+    setVoiceOpen(true);
+
     const recognition =
       new SpeechRecognition();
 
     recognition.lang = "en-US";
 
+    recognition.continuous = false;
+
+    recognition.interimResults = false;
+
     recognition.start();
 
     recognition.onresult = (
-      e: any
+      event: any
     ) => {
       const transcript =
-        e.results[0][0].transcript;
+        event.results[0][0].transcript;
 
       setInput(transcript);
 
+      setVoiceOpen(false);
+
       toast("Voice captured");
     };
-  }
 
-  function bookmarkMessage(
-    msgId: number
-  ) {
-    if (!currentChat) return;
+    recognition.onerror = () => {
+      setVoiceOpen(false);
 
-    updateChat(currentChat.id, (chat) => ({
-      ...chat,
-      messages: chat.messages.map((m) =>
-        m.id === msgId
-          ? {
-              ...m,
-              bookmarked: !m.bookmarked,
-            }
-          : m
-      ),
-    }));
+      toast("Voice cancelled");
+    };
 
-    toast("Bookmarked");
-  }
-
-  function regenerate(msg: Message) {
-    setInput(msg.text);
-
-    toast("Prompt restored");
-  }
-
-  async function logout() {
-    await supabase.auth.signOut();
-
-    router.push("/login");
+    recognition.onend = () => {
+      setVoiceOpen(false);
+    };
   }
 
   const filteredChats = useMemo(() => {
@@ -600,7 +432,7 @@ export default function LuminaUltraX() {
         <div className="sideTop">
           <div className="logo">
             <Sparkles size={18} />
-            <span>Lumina Ultra X</span>
+            <span>Lumina AI</span>
           </div>
 
           <button
@@ -635,84 +467,75 @@ export default function LuminaUltraX() {
 
         <div className="quickTools">
           <div className="toolCard">
-            <Brain size={18} />
-            Reasoning
+            <Bot size={18} />
+            Smart AI
           </div>
 
           <div className="toolCard">
-            <Globe size={18} />
-            Web Search
+            <Shield size={18} />
+            Secure
           </div>
 
           <div className="toolCard">
-            <ImageIcon size={18} />
-            Vision AI
+            <Cpu size={18} />
+            Fast
           </div>
 
           <div className="toolCard">
-            <Mic size={18} />
-            Voice Mode
+            <Wand2 size={18} />
+            Creative
           </div>
-        </div>
-
-        <div className="modelSelector">
-          {models.map((model) => (
-            <button
-              key={model}
-              className={`modelBtn ${
-                selectedModel === model
-                  ? "activeModel"
-                  : ""
-              }`}
-              onClick={() =>
-                setSelectedModel(model)
-              }
-            >
-              {model}
-            </button>
-          ))}
         </div>
 
         <div className="history">
-          {filteredChats.map((chat) => (
-            <div
-              key={chat.id}
-              className={`historyItem ${
-                currentChatId ===
-                chat.id
-                  ? "active"
-                  : ""
-              }`}
-            >
-              <button
-                className="historySelect"
-                onClick={() => {
-                  setCurrentChatId(
-                    chat.id
-                  );
-
-                  setSidebar(false);
-                }}
+          {filteredChats.map(
+            (chat) => (
+              <div
+                key={chat.id}
+                className={`historyItem ${
+                  chats[currentChat]?.id ===
+                  chat.id
+                    ? "active"
+                    : ""
+                }`}
               >
-                <MessageSquare
-                  size={16}
-                />
+                <button
+                  className="historySelect"
+                  onClick={() => {
+                    const realIndex =
+                      chats.findIndex(
+                        (c) =>
+                          c.id ===
+                          chat.id
+                      );
 
-                <span>
-                  {chat.title}
-                </span>
-              </button>
+                    setCurrentChat(
+                      realIndex
+                    );
 
-              <button
-                className="deleteMini"
-                onClick={() =>
-                  deleteChat(chat.id)
-                }
-              >
-                <Trash2 size={14} />
-              </button>
-            </div>
-          ))}
+                    setSidebar(false);
+                  }}
+                >
+                  <MessageSquare
+                    size={16}
+                  />
+
+                  <span>
+                    {chat.title}
+                  </span>
+                </button>
+
+                <button
+                  className="deleteMini"
+                  onClick={() =>
+                    deleteChat(chat.id)
+                  }
+                >
+                  <Trash2 size={14} />
+                </button>
+              </div>
+            )
+          )}
         </div>
 
         <div className="sideBottom">
@@ -752,9 +575,7 @@ export default function LuminaUltraX() {
           </button>
 
           <div className="centerBrand">
-            <span>
-              Lumina Ultra X
-            </span>
+            <span>Lumina Ultra</span>
 
             <div
               className={`status ${
@@ -769,103 +590,75 @@ export default function LuminaUltraX() {
             </div>
           </div>
 
-          <div className="topRight">
-            <button
-              className={`circleBtn ${
-                webMode
-                  ? "enabled"
-                  : ""
-              }`}
-              onClick={() =>
-                setWebMode(!webMode)
-              }
-            >
-              <Globe size={18} />
-            </button>
-
-            <button
-              className={`circleBtn ${
-                voiceMode
-                  ? "enabled"
-                  : ""
-              }`}
-              onClick={() =>
-                setVoiceMode(
-                  !voiceMode
-                )
-              }
-            >
-              <Mic size={18} />
-            </button>
-
-            <button
-              className="circleBtn"
-              onClick={createChat}
-            >
-              <PenSquare size={18} />
-            </button>
-          </div>
+          <button
+            className="circleBtn"
+            onClick={createChat}
+          >
+            <PenSquare size={18} />
+          </button>
         </header>
 
-        {currentChat?.messages.length ===
-          0 && (
+        {chats[currentChat]?.messages
+          .length === 0 && (
           <div className="hero">
             <div className="heroBadge">
               <Stars size={16} />
-              Lumina Ultra Intelligence
+              Next Generation AI
             </div>
 
             <h1>
               Think smarter.
               <br />
-              Create faster.
+              Build faster.
             </h1>
 
             <p>
-              Streaming AI, memory,
-              vision, voice, reasoning,
-              coding, creativity and
-              intelligent conversations.
+              Voice AI, coding, writing,
+              research, creativity and
+              ultra-fast responses in one
+              futuristic workspace.
             </p>
 
             <div className="heroGrid">
               <div className="heroCard">
                 <Zap size={22} />
-                <h3>Streaming</h3>
+                <h3>Ultra Speed</h3>
                 <span>
-                  Real-time AI responses
+                  Faster AI responses
                 </span>
               </div>
 
               <div className="heroCard">
-                <Brain size={22} />
-                <h3>Reasoning</h3>
+                <Bot size={22} />
+                <h3>Smart Assistant</h3>
                 <span>
-                  Advanced intelligence
+                  Human-like answers
+                </span>
+              </div>
+
+              <div className="heroCard">
+                <Mic size={22} />
+                <h3>Voice Support</h3>
+                <span>
+                  Speak naturally
                 </span>
               </div>
 
               <div className="heroCard">
                 <ImageIcon size={22} />
-                <h3>Vision</h3>
+                <h3>Creative AI</h3>
                 <span>
-                  Analyze images
-                </span>
-              </div>
-
-              <div className="heroCard">
-                <Globe size={22} />
-                <h3>Web AI</h3>
-                <span>
-                  Live information
+                  Ideas and generation
                 </span>
               </div>
             </div>
           </div>
         )}
 
+        {/* CHAT */}
+
         <div className="chatArea">
-          {currentChat?.messages.map(
+          {chats[currentChat]?.messages.map(
             (msg) => (
               <div
                 key={msg.id}
@@ -881,8 +674,7 @@ export default function LuminaUltraX() {
               >
                 <div className="msgTop">
                   <div className="msgUser">
-                    {msg.role ===
-                    "assistant" ? (
+                    {msg.role === "assistant" ? (
                       <>
                         <Bot size={16} />
                         Lumina
@@ -902,13 +694,7 @@ export default function LuminaUltraX() {
                 </div>
 
                 <div className="msgText">
-                  <ReactMarkdown
-                    remarkPlugins={[
-                      remarkGfm,
-                    ]}
-                  >
-                    {msg.text}
-                  </ReactMarkdown>
+                  {msg.text}
                 </div>
 
                 {msg.role ===
@@ -938,52 +724,20 @@ export default function LuminaUltraX() {
 
                     <button
                       onClick={() =>
-                        bookmarkMessage(
-                          msg.id
-                        )
+                        react("up")
                       }
                     >
-                      <Bookmark
+                      <ThumbsUp
                         size={15}
                       />
                     </button>
 
                     <button
                       onClick={() =>
-                        regenerate(msg)
+                        react("down")
                       }
                     >
-                      <RefreshCw
-                        size={15}
-                      />
-                    </button>
-
-                    <button>
-                      <Share2
-                        size={15}
-                      />
-                    </button>
-
-                    <button>
-                      <Download
-                        size={15}
-                      />
-                    </button>
-
-                    <button>
-                      <ThumbsUp
-                        size={15}
-                      />
-                    </button>
-
-                    <button>
                       <ThumbsDown
-                        size={15}
-                      />
-                    </button>
-
-                    <button>
-                      <MoreHorizontal
                         size={15}
                       />
                     </button>
@@ -1008,24 +762,16 @@ export default function LuminaUltraX() {
 
         <div className="inputWrap">
           <div className="inputBox">
-            <textarea
-              ref={textareaRef}
-              placeholder="Ask Lumina anything..."
+            <input
+              placeholder="Ask Lumina AI..."
               value={input}
-              rows={1}
               onChange={(e) =>
                 setInput(e.target.value)
               }
-              onKeyDown={(e) => {
-                if (
-                  e.key === "Enter" &&
-                  !e.shiftKey
-                ) {
-                  e.preventDefault();
-
-                  sendMessage();
-                }
-              }}
+              onKeyDown={(e) =>
+                e.key === "Enter" &&
+                sendMessage()
+              }
             />
 
             <div className="inputButtons">
@@ -1037,49 +783,27 @@ export default function LuminaUltraX() {
               </button>
 
               <button className="miniBtn">
-                <Paperclip
-                  size={18}
-                />
+                <ImageIcon size={18} />
               </button>
 
-              <button className="miniBtn">
-                <ImageIcon
-                  size={18}
-                />
+              <button
+                className="sendBtn"
+                onClick={sendMessage}
+              >
+                <Send size={18} />
               </button>
-
-              {streaming ? (
-                <button
-                  className="stopBtn"
-                  onClick={
-                    stopGeneration
-                  }
-                >
-                  <StopCircle
-                    size={18}
-                  />
-                </button>
-              ) : (
-                <button
-                  className="sendBtn"
-                  onClick={sendMessage}
-                >
-                  <Send size={18} />
-                </button>
-              )}
             </div>
           </div>
 
           <div className="inputFooter">
             <span>
-              {selectedModel}
+              Lumina Ultra AI
             </span>
 
             <ChevronRight size={14} />
 
             <span>
-              Secure • Streaming •
-              Smart
+              Secure • Fast • Smart
             </span>
           </div>
         </div>
@@ -1105,8 +829,10 @@ export default function LuminaUltraX() {
             <div className="setting">
               <div>
                 <h3>Dark Mode</h3>
+
                 <p>
-                  Futuristic dark UI
+                  Toggle interface
+                  appearance
                 </p>
               </div>
 
@@ -1129,8 +855,9 @@ export default function LuminaUltraX() {
             <div className="setting">
               <div>
                 <h3>Glow Effects</h3>
+
                 <p>
-                  Visual ambient glow
+                  Futuristic visual glow
                 </p>
               </div>
 
@@ -1142,15 +869,14 @@ export default function LuminaUltraX() {
                   )
                 }
               >
-                <Sparkles
-                  size={16}
-                />
+                <Check size={16} />
               </button>
             </div>
 
             <div className="setting">
               <div>
                 <h3>Compact Mode</h3>
+
                 <p>
                   Smaller message layout
                 </p>
@@ -1201,14 +927,22 @@ export default function LuminaUltraX() {
                 </h3>
 
                 <p>
-                  Lumina Ultra+
+                  Lumina Premium
                 </p>
               </div>
             </div>
 
             <button className="panelBtn premium">
               <Crown size={18} />
-              Upgrade Ultra Max
+              Upgrade to Ultra+
+            </button>
+
+            <button
+              className="panelBtn danger"
+              onClick={deleteAccount}
+            >
+              <Trash2 size={18} />
+              Delete Account
             </button>
 
             <button
@@ -1219,6 +953,16 @@ export default function LuminaUltraX() {
               Logout
             </button>
           </div>
+        </div>
+      )}
+
+      {/* VOICE */}
+
+      {voiceOpen && (
+        <div className="voiceOverlay">
+          <div className="voiceOrb" />
+
+          <h2>Listening...</h2>
         </div>
       )}
 
@@ -1253,8 +997,8 @@ export default function LuminaUltraX() {
           width: 100%;
           min-height: 100vh;
           display: flex;
-          background: #000;
-          color: white;
+          overflow: hidden;
+          position: relative;
         }
 
         .dark {
@@ -1263,12 +1007,48 @@ export default function LuminaUltraX() {
         }
 
         .light {
-          background: #f5f5f5;
+          background: #f4f4f4;
           color: black;
         }
 
+        .bgWord {
+          position: fixed;
+          inset: 0;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-size: 18vw;
+          font-weight: 900;
+          opacity: 0.03;
+          letter-spacing: 14px;
+          pointer-events: none;
+        }
+
+        .glow {
+          position: fixed;
+          border-radius: 50%;
+          filter: blur(120px);
+          z-index: 0;
+        }
+
+        .glow1 {
+          width: 350px;
+          height: 350px;
+          background: #222;
+          top: -100px;
+          left: -100px;
+        }
+
+        .glow2 {
+          width: 320px;
+          height: 320px;
+          background: #111;
+          bottom: -100px;
+          right: -100px;
+        }
+
         .sidebar {
-          width: 310px;
+          width: 300px;
           background: rgba(
             10,
             10,
@@ -1276,37 +1056,323 @@ export default function LuminaUltraX() {
             0.92
           );
           border-right: 1px solid
-            #1c1c1c;
+            #1d1d1d;
           padding: 18px;
           display: flex;
           flex-direction: column;
-          z-index: 50;
+          z-index: 20;
+        }
+
+        .sideTop {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+        }
+
+        .logo {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          font-size: 22px;
+          font-weight: 800;
+        }
+
+        .logo span {
+          line-height: 1;
+        }
+
+        .mobileClose {
+          display: none;
+        }
+
+        .newChatBtn {
+          margin-top: 22px;
+          height: 58px;
+          border-radius: 18px;
+          border: none;
+          background: white;
+          color: black;
+          font-weight: 700;
+          cursor: pointer;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: 10px;
+        }
+
+        .searchBox {
+          height: 52px;
+          border-radius: 16px;
+          background: #101010;
+          border: 1px solid #1f1f1f;
+          margin-top: 16px;
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          padding: 0 16px;
+        }
+
+        .searchBox input {
+          flex: 1;
+          background: transparent;
+          border: none;
+          outline: none;
+          color: white;
+        }
+
+        .quickTools {
+          display: grid;
+          grid-template-columns: repeat(
+            2,
+            1fr
+          );
+          gap: 10px;
+          margin-top: 18px;
+        }
+
+        .toolCard {
+          height: 70px;
+          border-radius: 18px;
+          background: #111;
+          border: 1px solid #1c1c1c;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          gap: 8px;
+          font-size: 13px;
+        }
+
+        .history {
+          flex: 1;
+          overflow-y: auto;
+          margin-top: 20px;
+        }
+
+        .historyItem {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          margin-bottom: 10px;
+        }
+
+        .historySelect {
+          flex: 1;
+          height: 52px;
+          border-radius: 16px;
+          border: none;
+          background: #121212;
+          color: white;
+          padding: 0 16px;
+          display: flex;
+          align-items: center;
+          gap: 12px;
+          cursor: pointer;
+        }
+
+        .historySelect span {
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+        }
+
+        .historyItem.active
+          .historySelect {
+          background: white;
+          color: black;
+        }
+
+        .deleteMini {
+          width: 44px;
+          height: 44px;
+          border-radius: 14px;
+          border: none;
+          background: #151515;
+          color: white;
+        }
+
+        .sideBottom {
+          display: flex;
+          flex-direction: column;
+          gap: 10px;
+        }
+
+        .sideBtn {
+          height: 52px;
+          border-radius: 16px;
+          border: none;
+          background: #111;
+          color: white;
+          display: flex;
+          align-items: center;
+          gap: 12px;
+          padding: 0 16px;
+          cursor: pointer;
         }
 
         .main {
           flex: 1;
+          min-width: 0;
           display: flex;
           flex-direction: column;
-          min-width: 0;
+          position: relative;
+        }
+
+        .topbar {
+          height: 72px;
+          border-bottom: 1px solid
+            #111;
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          padding: 0 18px;
+          backdrop-filter: blur(10px);
+        }
+
+        .centerBrand {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+        }
+
+        .centerBrand span {
+          font-size: 24px;
+          font-weight: 800;
+          line-height: 1;
+        }
+
+        .status {
+          font-size: 12px;
+          margin-top: 4px;
+        }
+
+        .online {
+          color: #4ade80;
+        }
+
+        .offline {
+          color: #f87171;
+        }
+
+        .circleBtn {
+          width: 46px;
+          height: 46px;
+          border-radius: 50%;
+          border: none;
+          background: #111;
+          color: white;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+        }
+
+        .hero {
+          padding: 70px 28px 30px;
+          position: relative;
+          z-index: 2;
+        }
+
+        .heroBadge {
+          width: fit-content;
+          padding: 10px 16px;
+          border-radius: 999px;
+          background: #111;
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          margin-bottom: 24px;
+        }
+
+        .hero h1 {
+          font-size: 64px;
+          line-height: 1;
+          font-weight: 900;
+          letter-spacing: -2px;
+        }
+
+        .hero p {
+          margin-top: 18px;
+          font-size: 18px;
+          color: #9a9a9a;
+          max-width: 700px;
+          line-height: 1.7;
+        }
+
+        .heroGrid {
+          margin-top: 34px;
+          display: grid;
+          grid-template-columns: repeat(
+            2,
+            minmax(0, 1fr)
+          );
+          gap: 16px;
+          max-width: 800px;
+        }
+
+        .heroCard {
+          min-height: 140px;
+          border-radius: 24px;
+          background: rgba(
+            18,
+            18,
+            18,
+            0.8
+          );
+          border: 1px solid #1d1d1d;
+          padding: 24px;
+          display: flex;
+          flex-direction: column;
+          justify-content: space-between;
+          transition: 0.25s;
+        }
+
+        .heroCard:hover {
+          transform: translateY(-4px);
+          border-color: #3a3a3a;
+        }
+
+        .heroCard h3 {
+          margin-top: 18px;
+          font-size: 20px;
+        }
+
+        .heroCard span {
+          color: #9b9b9b;
+          margin-top: 8px;
         }
 
         .chatArea {
           flex: 1;
           overflow-y: auto;
-          padding: 24px 24px 180px;
+          padding: 20px 24px 150px;
+          width: 100%;
         }
 
         .msg {
-          max-width: 900px;
-          border-radius: 26px;
+          width: fit-content;
+          max-width: min(
+            860px,
+            100%
+          );
           padding: 22px;
-          margin-bottom: 20px;
+          border-radius: 24px;
+          margin-bottom: 18px;
           animation: fade 0.2s ease;
+          word-break: break-word;
+        }
+
+        .compact {
+          padding: 14px;
         }
 
         .msg.ai {
-          background: #0d0d0d;
-          border: 1px solid #1d1d1d;
+          background: rgba(
+            12,
+            12,
+            12,
+            0.9
+          );
+          border: 1px solid #1f1f1f;
         }
 
         .msg.user {
@@ -1315,109 +1381,54 @@ export default function LuminaUltraX() {
           color: black;
         }
 
-        .msgText {
-          line-height: 1.8;
-        }
-
-        .msgText pre {
-          overflow-x: auto;
-          background: #050505;
-          padding: 18px;
-          border-radius: 16px;
-          margin-top: 16px;
-        }
-
-        .msgText code {
-          font-family: monospace;
-        }
-
-        .inputWrap {
-          position: fixed;
-          bottom: 0;
-          left: 310px;
-          right: 0;
-          padding: 18px;
-          background: linear-gradient(
-            to top,
-            rgba(0, 0, 0, 0.96),
-            transparent
-          );
-          backdrop-filter: blur(16px);
-        }
-
-        .inputBox {
-          max-width: 980px;
-          margin: auto;
-          min-height: 76px;
-          border-radius: 28px;
-          border: 1px solid #1d1d1d;
-          background: rgba(
-            10,
-            10,
-            10,
-            0.96
-          );
+        .msgTop {
           display: flex;
-          align-items: flex-end;
-          padding: 16px;
-          gap: 12px;
+          align-items: center;
+          justify-content: space-between;
+          margin-bottom: 16px;
+          gap: 20px;
         }
 
-        textarea {
-          flex: 1;
-          background: transparent;
-          border: none;
-          resize: none;
-          color: white;
-          outline: none;
+        .msgUser {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          font-weight: 700;
+        }
+
+        .msgTime {
+          display: flex;
+          align-items: center;
+          gap: 6px;
+          font-size: 12px;
+          opacity: 0.7;
+        }
+
+        .msgText {
+          line-height: 1.9;
           font-size: 16px;
-          max-height: 220px;
+          white-space: pre-wrap;
         }
 
-        .inputButtons {
+        .msgActions {
           display: flex;
           gap: 10px;
+          margin-top: 18px;
         }
 
-        .miniBtn,
-        .sendBtn,
-        .stopBtn,
-        .circleBtn {
-          width: 48px;
-          height: 48px;
+        .msgActions button {
+          width: 40px;
+          height: 40px;
           border-radius: 50%;
           border: none;
           background: #111;
           color: white;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          cursor: pointer;
-        }
-
-        .sendBtn {
-          background: white;
-          color: black;
-        }
-
-        .stopBtn {
-          background: #450d0d;
-        }
-
-        .topbar {
-          height: 74px;
-          border-bottom: 1px solid
-            #111;
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          padding: 0 18px;
         }
 
         .typing {
           display: flex;
           gap: 8px;
-          padding: 10px;
+          padding: 12px;
         }
 
         .typing span {
@@ -1428,9 +1439,235 @@ export default function LuminaUltraX() {
           animation: bounce 1s infinite;
         }
 
+        .inputWrap {
+          position: fixed;
+          bottom: 0;
+          left: 300px;
+          right: 0;
+          padding: 18px;
+          background: linear-gradient(
+            to top,
+            rgba(0, 0, 0, 0.95),
+            transparent
+          );
+          backdrop-filter: blur(12px);
+        }
+
+        .inputBox {
+          max-width: 950px;
+          margin: auto;
+          height: 74px;
+          border-radius: 28px;
+          border: 1px solid #1d1d1d;
+          background: rgba(
+            10,
+            10,
+            10,
+            0.95
+          );
+          display: flex;
+          align-items: center;
+          padding: 0 14px 0 22px;
+        }
+
+        .inputBox input {
+          flex: 1;
+          border: none;
+          background: transparent;
+          color: white;
+          font-size: 17px;
+          outline: none;
+          min-width: 0;
+        }
+
+        .inputButtons {
+          display: flex;
+          gap: 10px;
+        }
+
+        .miniBtn,
+        .sendBtn {
+          width: 48px;
+          height: 48px;
+          border-radius: 50%;
+          border: none;
+          cursor: pointer;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+        }
+
+        .miniBtn {
+          background: #111;
+          color: white;
+        }
+
+        .sendBtn {
+          background: white;
+          color: black;
+        }
+
+        .inputFooter {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: 8px;
+          margin-top: 12px;
+          font-size: 12px;
+          color: #7f7f7f;
+        }
+
+        .overlay {
+          position: fixed;
+          inset: 0;
+          background: rgba(
+            0,
+            0,
+            0,
+            0.7
+          );
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          z-index: 100;
+          padding: 20px;
+        }
+
+        .panel {
+          width: 420px;
+          max-width: 100%;
+          background: #090909;
+          border: 1px solid #1d1d1d;
+          border-radius: 28px;
+          padding: 24px;
+        }
+
+        .panelTop {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+        }
+
+        .panelTop button {
+          width: 40px;
+          height: 40px;
+          border-radius: 50%;
+          border: none;
+          background: #111;
+          color: white;
+        }
+
+        .setting {
+          margin-top: 24px;
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+        }
+
+        .setting h3 {
+          font-size: 16px;
+        }
+
+        .setting p {
+          color: #8b8b8b;
+          margin-top: 4px;
+          font-size: 14px;
+        }
+
+        .toggle {
+          width: 44px;
+          height: 44px;
+          border-radius: 50%;
+          border: none;
+          background: white;
+          color: black;
+        }
+
+        .profile {
+          display: flex;
+          align-items: center;
+          gap: 16px;
+          margin-top: 24px;
+        }
+
+        .avatar {
+          width: 68px;
+          height: 68px;
+          border-radius: 50%;
+          background: white;
+          color: black;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-size: 28px;
+          font-weight: 800;
+        }
+
+        .panelBtn {
+          width: 100%;
+          height: 56px;
+          border-radius: 18px;
+          border: none;
+          margin-top: 16px;
+          display: flex;
+          align-items: center;
+          gap: 12px;
+          padding: 0 18px;
+          cursor: pointer;
+        }
+
+        .premium {
+          background: white;
+          color: black;
+          font-weight: 700;
+        }
+
+        .danger {
+          background: #260909;
+          color: white;
+        }
+
+        .logout {
+          background: #111;
+          color: white;
+        }
+
+        .voiceOverlay {
+          position: fixed;
+          inset: 0;
+          background: rgba(
+            0,
+            0,
+            0,
+            0.86
+          );
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          flex-direction: column;
+          z-index: 200;
+        }
+
+        .voiceOrb {
+          width: 180px;
+          height: 180px;
+          border-radius: 50%;
+          background: radial-gradient(
+            circle,
+            white,
+            #333
+          );
+          animation: pulse 1.2s infinite;
+        }
+
+        .voiceOverlay h2 {
+          margin-top: 24px;
+          font-size: 32px;
+        }
+
         .toast {
           position: fixed;
-          bottom: 24px;
+          bottom: 30px;
           left: 50%;
           transform: translateX(-50%);
           background: white;
@@ -1438,16 +1675,16 @@ export default function LuminaUltraX() {
           padding: 14px 24px;
           border-radius: 999px;
           font-weight: 700;
-          z-index: 999;
+          z-index: 200;
         }
 
         .loader {
           width: 100%;
           height: 100vh;
+          background: black;
           display: flex;
           align-items: center;
           justify-content: center;
-          background: black;
         }
 
         .loaderOrb {
@@ -1462,6 +1699,12 @@ export default function LuminaUltraX() {
         @keyframes spin {
           to {
             transform: rotate(360deg);
+          }
+        }
+
+        @keyframes pulse {
+          50% {
+            transform: scale(1.08);
           }
         }
 
@@ -1496,12 +1739,44 @@ export default function LuminaUltraX() {
             left: 0;
           }
 
+          .mobileClose {
+            display: flex;
+            width: 38px;
+            height: 38px;
+            border-radius: 50%;
+            border: none;
+            background: #111;
+            color: white;
+            align-items: center;
+            justify-content: center;
+          }
+
           .inputWrap {
             left: 0;
           }
 
+          .hero {
+            padding: 50px 18px 20px;
+          }
+
+          .hero h1 {
+            font-size: 44px;
+          }
+
+          .heroGrid {
+            grid-template-columns: 1fr;
+          }
+
+          .chatArea {
+            padding: 18px 14px 150px;
+          }
+
           .msg {
             max-width: 100%;
+          }
+
+          .bgWord {
+            font-size: 30vw;
           }
         }
       `}</style>
