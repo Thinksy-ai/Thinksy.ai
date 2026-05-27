@@ -71,14 +71,11 @@ export default function LuminaUltra() {
 
   const [sidebar, setSidebar] = useState(false);
 
-  const [settingsOpen, setSettingsOpen] =
-    useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
 
-  const [accountOpen, setAccountOpen] =
-    useState(false);
+  const [accountOpen, setAccountOpen] = useState(false);
 
-  const [voiceOpen, setVoiceOpen] =
-    useState(false);
+  const [voiceOpen, setVoiceOpen] = useState(false);
 
   const [typing, setTyping] = useState(false);
 
@@ -88,20 +85,15 @@ export default function LuminaUltra() {
 
   const [search, setSearch] = useState("");
 
-  const [darkMode, setDarkMode] =
-    useState(true);
+  const [darkMode, setDarkMode] = useState(true);
 
-  const [glowEffects, setGlowEffects] =
-    useState(true);
+  const [glowEffects, setGlowEffects] = useState(true);
 
-  const [compactMode, setCompactMode] =
-    useState(false);
+  const [compactMode, setCompactMode] = useState(false);
 
-  const [online, setOnline] =
-    useState(true);
+  const [online, setOnline] = useState(true);
 
-  const [currentChat, setCurrentChat] =
-    useState(0);
+  const [currentChat, setCurrentChat] = useState(0);
 
   const [chats, setChats] = useState<Chat[]>([
     {
@@ -178,6 +170,64 @@ export default function LuminaUltra() {
       );
     };
   }, []);
+
+  useEffect(() => {
+    const savedTheme =
+      localStorage.getItem("lumina-theme");
+
+    if (savedTheme === "light") {
+      setDarkMode(false);
+    }
+
+    const savedGlow =
+      localStorage.getItem("lumina-glow");
+
+    if (savedGlow === "false") {
+      setGlowEffects(false);
+    }
+
+    const savedCompact =
+      localStorage.getItem("lumina-compact");
+
+    if (savedCompact === "true") {
+      setCompactMode(true);
+    }
+
+    const savedChats =
+      localStorage.getItem("lumina-chats");
+
+    if (savedChats) {
+      setChats(JSON.parse(savedChats));
+    }
+  }, []);
+
+  useEffect(() => {
+    localStorage.setItem(
+      "lumina-theme",
+      darkMode ? "dark" : "light"
+    );
+  }, [darkMode]);
+
+  useEffect(() => {
+    localStorage.setItem(
+      "lumina-glow",
+      glowEffects.toString()
+    );
+  }, [glowEffects]);
+
+  useEffect(() => {
+    localStorage.setItem(
+      "lumina-compact",
+      compactMode.toString()
+    );
+  }, [compactMode]);
+
+  useEffect(() => {
+    localStorage.setItem(
+      "lumina-chats",
+      JSON.stringify(chats)
+    );
+  }, [chats]);
 
   function toast(text: string) {
     setPopup(text);
@@ -418,11 +468,11 @@ export default function LuminaUltra() {
         </>
       )}
 
+      <div className="bgGrid" />
+
       <div className="bgWord">
         LUMINA
       </div>
-
-      {/* SIDEBAR */}
 
       <aside
         className={`sidebar ${
@@ -561,8 +611,6 @@ export default function LuminaUltra() {
         </div>
       </aside>
 
-      {/* MAIN */}
-
       <section className="main">
         <header className="topbar">
           <button
@@ -654,8 +702,6 @@ export default function LuminaUltra() {
             </div>
           </div>
         )}
-
-        {/* CHAT */}
 
         <div className="chatArea">
           {chats[currentChat]?.messages.map(
@@ -758,8 +804,6 @@ export default function LuminaUltra() {
           <div ref={bottomRef} />
         </div>
 
-        {/* INPUT */}
-
         <div className="inputWrap">
           <div className="inputBox">
             <input
@@ -808,8 +852,6 @@ export default function LuminaUltra() {
           </div>
         </div>
       </section>
-
-      {/* SETTINGS */}
 
       {settingsOpen && (
         <div className="overlay">
@@ -899,8 +941,6 @@ export default function LuminaUltra() {
         </div>
       )}
 
-      {/* ACCOUNT */}
-
       {accountOpen && (
         <div className="overlay">
           <div className="panel">
@@ -956,8 +996,6 @@ export default function LuminaUltra() {
         </div>
       )}
 
-      {/* VOICE */}
-
       {voiceOpen && (
         <div className="voiceOverlay">
           <div className="voiceOrb" />
@@ -965,8 +1003,6 @@ export default function LuminaUltra() {
           <h2>Listening...</h2>
         </div>
       )}
-
-      {/* TOAST */}
 
       {popup && (
         <div className="toast">
@@ -987,10 +1023,25 @@ export default function LuminaUltra() {
           overflow-x: hidden;
           font-family: Inter,
             sans-serif;
+          scroll-behavior: smooth;
         }
 
         body {
           background: #000;
+        }
+
+        button,
+        input {
+          font-family: inherit;
+        }
+
+        ::-webkit-scrollbar {
+          width: 6px;
+        }
+
+        ::-webkit-scrollbar-thumb {
+          background: #333;
+          border-radius: 999px;
         }
 
         .app {
@@ -1009,6 +1060,24 @@ export default function LuminaUltra() {
         .light {
           background: #f4f4f4;
           color: black;
+        }
+
+        .bgGrid {
+          position: fixed;
+          inset: 0;
+          background-image: linear-gradient(
+              rgba(255,255,255,0.03)
+                1px,
+              transparent 1px
+            ),
+            linear-gradient(
+              90deg,
+              rgba(255,255,255,0.03)
+                1px,
+              transparent 1px
+            );
+          background-size: 40px 40px;
+          pointer-events: none;
         }
 
         .bgWord {
@@ -1061,6 +1130,7 @@ export default function LuminaUltra() {
           display: flex;
           flex-direction: column;
           z-index: 20;
+          backdrop-filter: blur(18px);
         }
 
         .sideTop {
@@ -1077,10 +1147,6 @@ export default function LuminaUltra() {
           font-weight: 800;
         }
 
-        .logo span {
-          line-height: 1;
-        }
-
         .mobileClose {
           display: none;
         }
@@ -1094,10 +1160,11 @@ export default function LuminaUltra() {
           color: black;
           font-weight: 700;
           cursor: pointer;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          gap: 10px;
+          transition: 0.2s;
+        }
+
+        .newChatBtn:hover {
+          transform: scale(1.02);
         }
 
         .searchBox {
@@ -1170,12 +1237,6 @@ export default function LuminaUltra() {
           cursor: pointer;
         }
 
-        .historySelect span {
-          overflow: hidden;
-          text-overflow: ellipsis;
-          white-space: nowrap;
-        }
-
         .historyItem.active
           .historySelect {
           background: white;
@@ -1238,7 +1299,6 @@ export default function LuminaUltra() {
         .centerBrand span {
           font-size: 24px;
           font-weight: 800;
-          line-height: 1;
         }
 
         .status {
@@ -1264,12 +1324,11 @@ export default function LuminaUltra() {
           display: flex;
           align-items: center;
           justify-content: center;
+          cursor: pointer;
         }
 
         .hero {
           padding: 70px 28px 30px;
-          position: relative;
-          z-index: 2;
         }
 
         .heroBadge {
@@ -1287,7 +1346,6 @@ export default function LuminaUltra() {
           font-size: 64px;
           line-height: 1;
           font-weight: 900;
-          letter-spacing: -2px;
         }
 
         .hero p {
@@ -1320,32 +1378,17 @@ export default function LuminaUltra() {
           );
           border: 1px solid #1d1d1d;
           padding: 24px;
-          display: flex;
-          flex-direction: column;
-          justify-content: space-between;
           transition: 0.25s;
         }
 
         .heroCard:hover {
           transform: translateY(-4px);
-          border-color: #3a3a3a;
-        }
-
-        .heroCard h3 {
-          margin-top: 18px;
-          font-size: 20px;
-        }
-
-        .heroCard span {
-          color: #9b9b9b;
-          margin-top: 8px;
         }
 
         .chatArea {
           flex: 1;
           overflow-y: auto;
           padding: 20px 24px 150px;
-          width: 100%;
         }
 
         .msg {
@@ -1358,7 +1401,6 @@ export default function LuminaUltra() {
           border-radius: 24px;
           margin-bottom: 18px;
           animation: fade 0.2s ease;
-          word-break: break-word;
         }
 
         .compact {
@@ -1386,7 +1428,6 @@ export default function LuminaUltra() {
           align-items: center;
           justify-content: space-between;
           margin-bottom: 16px;
-          gap: 20px;
         }
 
         .msgUser {
@@ -1396,17 +1437,8 @@ export default function LuminaUltra() {
           font-weight: 700;
         }
 
-        .msgTime {
-          display: flex;
-          align-items: center;
-          gap: 6px;
-          font-size: 12px;
-          opacity: 0.7;
-        }
-
         .msgText {
           line-height: 1.9;
-          font-size: 16px;
           white-space: pre-wrap;
         }
 
@@ -1447,10 +1479,9 @@ export default function LuminaUltra() {
           padding: 18px;
           background: linear-gradient(
             to top,
-            rgba(0, 0, 0, 0.95),
+            rgba(0,0,0,0.95),
             transparent
           );
-          backdrop-filter: blur(12px);
         }
 
         .inputBox {
@@ -1477,7 +1508,6 @@ export default function LuminaUltra() {
           color: white;
           font-size: 17px;
           outline: none;
-          min-width: 0;
         }
 
         .inputButtons {
@@ -1492,9 +1522,6 @@ export default function LuminaUltra() {
           border-radius: 50%;
           border: none;
           cursor: pointer;
-          display: flex;
-          align-items: center;
-          justify-content: center;
         }
 
         .miniBtn {
@@ -1509,7 +1536,6 @@ export default function LuminaUltra() {
 
         .inputFooter {
           display: flex;
-          align-items: center;
           justify-content: center;
           gap: 8px;
           margin-top: 12px;
@@ -1530,12 +1556,10 @@ export default function LuminaUltra() {
           align-items: center;
           justify-content: center;
           z-index: 100;
-          padding: 20px;
         }
 
         .panel {
           width: 420px;
-          max-width: 100%;
           background: #090909;
           border: 1px solid #1d1d1d;
           border-radius: 28px;
@@ -1548,30 +1572,10 @@ export default function LuminaUltra() {
           justify-content: space-between;
         }
 
-        .panelTop button {
-          width: 40px;
-          height: 40px;
-          border-radius: 50%;
-          border: none;
-          background: #111;
-          color: white;
-        }
-
         .setting {
           margin-top: 24px;
           display: flex;
-          align-items: center;
           justify-content: space-between;
-        }
-
-        .setting h3 {
-          font-size: 16px;
-        }
-
-        .setting p {
-          color: #8b8b8b;
-          margin-top: 4px;
-          font-size: 14px;
         }
 
         .toggle {
@@ -1580,12 +1584,10 @@ export default function LuminaUltra() {
           border-radius: 50%;
           border: none;
           background: white;
-          color: black;
         }
 
         .profile {
           display: flex;
-          align-items: center;
           gap: 16px;
           margin-top: 24px;
         }
@@ -1609,17 +1611,12 @@ export default function LuminaUltra() {
           border-radius: 18px;
           border: none;
           margin-top: 16px;
-          display: flex;
-          align-items: center;
-          gap: 12px;
-          padding: 0 18px;
           cursor: pointer;
         }
 
         .premium {
           background: white;
           color: black;
-          font-weight: 700;
         }
 
         .danger {
@@ -1658,11 +1655,6 @@ export default function LuminaUltra() {
             #333
           );
           animation: pulse 1.2s infinite;
-        }
-
-        .voiceOverlay h2 {
-          margin-top: 24px;
-          font-size: 32px;
         }
 
         .toast {
