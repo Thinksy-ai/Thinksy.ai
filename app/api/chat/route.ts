@@ -1,4 +1,11 @@
 import { NextResponse } from "next/server";
+import pdfParse from "pdf-parse";
+
+export const runtime = "nodejs";
+
+// =============================
+// TYPES
+// =============================
 
 type Role =
   | "system"
@@ -17,6 +24,16 @@ type UserMemory = {
   facts: string[];
 };
 
+type UploadedFile = {
+  name: string;
+  type: string;
+  size: number;
+};
+
+// =============================
+// MEMORY
+// =============================
+
 const chatMemory = new Map<
   string,
   ChatMessage[]
@@ -27,89 +44,90 @@ const longMemory = new Map<
   UserMemory
 >();
 
+// =============================
+// SYSTEM PROMPT
+// =============================
+
 const SYSTEM_PROMPT = `
 You are Thinksy Ultra.
 
-You are an advanced futuristic AI assistant.
+You are the world's most advanced futuristic AI assistant.
 
 PERSONALITY:
 - intelligent
-- fast
 - emotionally aware
+- premium
+- modern
+- futuristic
 - natural
 - human-like
 - highly analytical
-- premium
-- modern
+- fast
+- visually formatted
 
-CORE RULES:
-- remember conversation context
-- continue naturally
-- never forget ongoing topics
-- be concise when needed
-- be detailed for studying/coding
-- always format beautifully
-- use markdown
-- use bullet points
-- use headings
-- use code blocks
-- use LaTeX formatting
-- never sound robotic
-- adapt to user psychology
-- detect emotional tone
-- act highly intelligent
-
-CODING RULES:
-- always use production-grade code
+BEHAVIOR:
+- remember long conversations
+- understand emotions
+- adapt to the user's tone
+- speak naturally
+- avoid robotic responses
+- think deeply
 - explain clearly
-- format perfectly
-- optimize performance
-- think step-by-step internally
 
-STUDY RULES:
-- explain concepts simply
-- use examples
-- use formulas
-- use tables when useful
+FORMATTING:
+- always use markdown
+- use headings
+- use bold text
+- use tables
+- use bullet points
+- use emojis only when useful
+- use code blocks
+- use spacing beautifully
+- make answers visually premium
+
+CODING:
+- production-grade code
+- optimized
+- secure
+- modern
+- scalable
+- use TypeScript best practices
+
+IMAGE ANALYSIS:
+- analyze uploaded images carefully
+- describe images
+- detect objects
+- detect UI issues
+- understand screenshots
+- understand diagrams
+
+PDF ANALYSIS:
+- summarize PDFs
+- extract important concepts
+- explain clearly
 
 MEMORY:
 You remember:
-- user personality
-- user goals
+- user preferences
 - projects
-- preferences
-- recurring interests
+- personality
 - coding style
-- emotional patterns
+- interests
+- goals
 
 STYLE:
-Modern premium AI.
+Modern premium AI assistant.
 `;
+
+// =============================
+// MEMORY EXTRACTION
+// =============================
 
 function extractMemory(
   text: string,
   memory: UserMemory
 ) {
   const lower = text.toLowerCase();
-
-  const patterns = [
-    "i like",
-    "i love",
-    "my project",
-    "i am building",
-    "my app",
-    "remember that",
-    "i prefer",
-    "my name is",
-    "i want",
-    "i hate",
-  ];
-
-  const important = patterns.some(
-    (p) => lower.includes(p)
-  );
-
-  if (!important) return memory;
 
   const updated = {
     personality: [
@@ -138,8 +156,8 @@ function extractMemory(
   }
 
   if (
-    lower.includes("i am") ||
-    lower.includes("my name")
+    lower.includes("my name") ||
+    lower.includes("i am")
   ) {
     updated.facts.push(text);
   }
@@ -151,10 +169,7 @@ function buildMemoryPrompt(
   memory: UserMemory
 ) {
   return `
-KNOWN USER MEMORY:
-
-Personality:
-${memory.personality.join("\n")}
+KNOWN USER MEMORY
 
 Preferences:
 ${memory.preferences.join("\n")}
@@ -167,23 +182,143 @@ ${memory.facts.join("\n")}
 `;
 }
 
+// =============================
+// FILE PROCESSOR
+// =============================
+
+async function processFiles(
+  files: File[]
+) {
+  let extractedText = "";
+
+  const uploadedFiles: UploadedFile[] =
+    [];
+
+  for (const file of files) {
+    uploadedFiles.push({
+      name: file.name,
+      type: file.type,
+      size: file.size,
+    });
+
+    // =========================
+    // IMAGES
+    // =========================
+
+    if (
+      file.type.startsWith("image/")
+    ) {
+      const buffer = Buffer.from(
+        await file.arrayBuffer()
+      );
+
+      const base64 =
+        buffer.toString("base64");
+
+      extractedText += `
+
+USER UPLOADED IMAGE:
+Name: ${file.name}
+
+IMAGE DATA:
+data:${file.type};base64,${base64}
+
+`;
+    }
+
+    // =========================
+    // PDF
+    // =========================
+
+    else if (
+      file.type ===
+      "application/pdf"
+    ) {
+      const buffer = Buffer.from(
+        await file.arrayBuffer()
+      );
+
+      const pdf =
+        await pdfParse(buffer);
+
+      extractedText += `
+
+PDF FILE: ${file.name}
+
+PDF CONTENT:
+${pdf.text}
+
+`;
+    }
+
+    // =========================
+    // TEXT
+    // =========================
+
+    else if (
+      file.type.includes("text") ||
+      file.name.endsWith(".txt")
+    ) {
+      const text =
+        await file.text();
+
+      extractedText += `
+
+TEXT FILE: ${file.name}
+
+${text}
+
+`;
+    }
+  }
+
+  return {
+    extractedText,
+    uploadedFiles,
+  };
+}
+
+// =============================
+// MAIN ROUTE
+// =============================
+
 export async function POST(
   req: Request
 ) {
   try {
-    const body = await req.json();
+    const formData =
+      await req.formData();
 
-    const {
-      message,
-      chatId = "default",
-      userId = "guest",
-    } = body;
+    const message =
+      formData
+        .get("message")
+        ?.toString() || "";
 
-    if (!message) {
+    const chatId =
+      formData
+        .get("chatId")
+        ?.toString() || "default";
+
+    const userId =
+      formData
+        .get("userId")
+        ?.toString() || "guest";
+
+    const files =
+      formData.getAll(
+        "files"
+      ) as File[];
+
+    if (!message && files.length === 0) {
       return NextResponse.json({
-        reply: "No message.",
+        reply:
+          "Please send a message or file.",
       });
     }
+
+    // =========================
+    // MEMORY
+    // =========================
 
     const previous =
       chatMemory.get(chatId) || [];
@@ -212,6 +347,38 @@ export async function POST(
         updatedMemory
       );
 
+    // =========================
+    // FILES
+    // =========================
+
+    const {
+      extractedText,
+      uploadedFiles,
+    } = await processFiles(files);
+
+    // =========================
+    // FINAL USER MESSAGE
+    // =========================
+
+    const finalUserMessage = `
+USER MESSAGE:
+${message}
+
+UPLOADED FILES:
+${JSON.stringify(
+  uploadedFiles,
+  null,
+  2
+)}
+
+EXTRACTED CONTENT:
+${extractedText}
+`;
+
+    // =========================
+    // AI MESSAGES
+    // =========================
+
     const messages: ChatMessage[] = [
       {
         role: "system",
@@ -225,9 +392,13 @@ export async function POST(
 
       {
         role: "user",
-        content: message,
+        content: finalUserMessage,
       },
     ];
+
+    // =========================
+    // OPENROUTER REQUEST
+    // =========================
 
     const response = await fetch(
       "https://openrouter.ai/api/v1/chat/completions",
@@ -238,15 +409,17 @@ export async function POST(
           Authorization: `Bearer ${process.env.OPENROUTER_API_KEY}`,
           "Content-Type":
             "application/json",
+
           "HTTP-Referer":
             "https://thinksyultra.vercel.app",
+
           "X-Title":
             "Thinksy Ultra",
         },
 
         body: JSON.stringify({
           model:
-            "openrouter/free",
+            "meta-llama/llama-3.3-70b-instruct:free",
 
           messages,
 
@@ -254,13 +427,17 @@ export async function POST(
 
           top_p: 0.95,
 
-          max_tokens: 2500,
+          max_tokens: 4000,
         }),
       }
     );
 
     const data =
       await response.json();
+
+    // =========================
+    // ERROR
+    // =========================
 
     if (data.error) {
       return NextResponse.json({
@@ -270,10 +447,18 @@ export async function POST(
       });
     }
 
+    // =========================
+    // AI RESPONSE
+    // =========================
+
     const reply =
       data.choices?.[0]?.message
         ?.content ||
       "No response generated.";
+
+    // =========================
+    // SAVE CHAT
+    // =========================
 
     const updatedChat: ChatMessage[] =
       [
@@ -294,6 +479,10 @@ export async function POST(
       chatId,
       updatedChat.slice(-40)
     );
+
+    // =========================
+    // RETURN
+    // =========================
 
     return NextResponse.json({
       reply,
