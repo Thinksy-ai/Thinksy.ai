@@ -522,7 +522,8 @@ export default function LuminaUltra() {
               <span>Lumina AI</span>
 
               <small>
-                ULTRA ENGINE
+                ...
+            
               </small>
             </div>
           </div>
@@ -671,7 +672,7 @@ export default function LuminaUltra() {
               <span>Lumina Ultra</span>
 
               <div className="proTag">
-                PRO
+                
               </div>
             </div>
 
